@@ -3,6 +3,7 @@
 namespace Arzcode\InfinitoOnboarding;
 
 use Arzcode\InfinitoOnboarding\Livewire\TourOverlay;
+use Arzcode\InfinitoOnboarding\Livewire\TourRecorder;
 use Arzcode\InfinitoOnboarding\Macros\TourTargetMacro;
 use Filament\Support\Assets\Asset;
 use Filament\Support\Assets\Css;
@@ -54,6 +55,7 @@ class InfinitoOnboardingServiceProvider extends PackageServiceProvider
     {
         return [
             'infinito-onboarding.tour-overlay' => TourOverlay::class,
+            'infinito-onboarding.tour-recorder' => TourRecorder::class,
         ];
     }
 
@@ -67,6 +69,8 @@ class InfinitoOnboardingServiceProvider extends PackageServiceProvider
     {
         return [
             Js::make('infinito-onboarding', __DIR__ . '/../resources/dist/infinito-onboarding.js'),
+            // Only injected by the recorder view, so normal pages never load it.
+            Js::make('infinito-onboarding-recorder', __DIR__ . '/../resources/dist/recorder.js')->loadedOnRequest(),
             Css::make('infinito-onboarding', __DIR__ . '/../resources/dist/infinito-onboarding.css'),
         ];
     }

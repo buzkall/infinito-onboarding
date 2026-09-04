@@ -1,0 +1,34 @@
+<!doctype html>
+<html>
+<head>
+  <link rel="stylesheet" href="../../resources/dist/infinito-onboarding.css">
+  <script src="../../resources/dist/infinito-onboarding.js"></script>
+  <script src="../../resources/dist/recorder.js"></script>
+  <script src="../../vendor/livewire/livewire/dist/livewire.js" data-csrf="x" data-update-uri="/livewire/update" data-navigate-once="true"></script>
+</head>
+<body>
+  <main>
+    <button id="btn-tour" data-tour="export">Export</button>
+    <div class="fi-fo-field"><label>Email address</label><input id="data.email" type="text"></div>
+    <div wire:key="orders.table.filters"><span class="inner">Filters</span></div>
+    <section><div><p><em class="deep">Deep text</em></p></div></section>
+    <section><div><p><em class="deep">Another deep</em></p></div></section>
+    <div id="lw-123456"><span class="generated">generated id parent</span></div>
+  </main>
+  <div data-io-recorder x-data="infinitoOnboardingRecorder({ tour: { key: 'demo' }, steps: [], labels: { title: 'Record tour', pick: 'Pick element', picking: 'Click…', centred: '+ Centred', empty: 'No steps', preview: 'Preview', save: 'Save', exit: 'Exit', step_title: 'Title', step_body: 'Body', step_placement: 'Placement', target: 'Target', no_target: 'None', retarget: 'Re-pick', add_step: 'Add step', update_step: 'Update', cancel: 'Cancel', edit: 'Edit', remove: 'Remove', unsaved: 'Unsaved', placements: { auto: 'Auto', top: 'Top' }, tour: {} }, exitUrl: null })">
+    <div class="io-recorder-hover" data-io-recorder x-show="picking && hover.visible" :class="scoreClass(hover.score)" :style="`top:${hover.top}px;left:${hover.left}px;width:${hover.width}px;height:${hover.height}px`"><span class="io-recorder-hover-label" x-text="hover.label"></span></div>
+    <div class="io-recorder-panel" data-io-recorder x-show="panelOpen">
+      <template x-if="! editorOpen"><div>
+        <button type="button" id="pick" class="io-btn" @click="togglePicking()" x-text="picking ? labels.picking : labels.pick"></button>
+        <ol id="steps"><template x-for="(step, index) in steps" :key="index"><li :data-score="step.score" x-text="step.title + ' | ' + (step.selector ?? 'none')"></li></template></ol>
+      </div></template>
+      <template x-if="editorOpen"><form class="io-recorder-editor" @submit.prevent="saveDraft()">
+        <code id="draft-selector" x-text="draft.selector"></code><span id="draft-score" x-text="draft.score"></span><span id="draft-hint" x-text="draft.hint"></span>
+        <input id="io-step-title" x-ref="title" x-model="draft.title"><textarea id="io-step-body" x-model="draft.body"></textarea>
+        <button type="submit" id="add">Add</button>
+      </form></template>
+      <button type="button" id="preview" @click="preview()">Preview</button>
+    </div>
+  </div>
+</body>
+</html>

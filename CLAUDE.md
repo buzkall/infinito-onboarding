@@ -84,3 +84,10 @@ A selector that matches more than one element is always red.
 
 - **Provider order matters.** `Filament\Support\SupportServiceProvider` must be registered *before* `Livewire\LivewireServiceProvider` in `tests/TestCase.php`. Filament rebinds Livewire's `DataStore` to its own subclass; if Livewire registers first, every `app(DataStore::class)` call returns a fresh instance and component state (error bags, etc.) vanishes with a `ViewErrorBag::put(): Argument #2 must be of type MessageBag, null given` error.
 - Rendered-HTML assertions use Livewire fixtures in `tests/Fixtures/Livewire` (`FormFixture`, `TableFixture`) and `Livewire::test(...)->assertSeeHtml(...)`.
+
+## Record mode notes
+
+- `Livewire\TourRecorder` is rendered by the same BODY_END hook as the overlay when `?onboarding-record=<key>` is present **and** the plugin's `authorize()` closure passes. An unknown key creates an unpublished draft tour scoped to the current path.
+- `resources/dist/recorder.js` is registered with `->loadedOnRequest()` and injected as a `<script>` by the recorder view only, so ordinary pages never load it. It depends on `window.InfinitoOnboarding.createTourRunner` from the main bundle for its Preview button.
+- Selector scoring lives in `captureTarget()` (`resources/js/recorder.js`): `data-tour` → green, stable `id` → green, `wire:key` → amber, generated `tag:nth-of-type` path → red (plus a hint naming the Filament component to add `->tourTarget()` to). Anything matching ≠ 1 element is red.
+- Steps are persisted through `TourRecorder::saveSteps()` which validates, keeps ids it is given, reorders and deletes the rest inside a transaction.

@@ -4,6 +4,7 @@ namespace Arzcode\InfinitoOnboarding;
 
 use Arzcode\InfinitoOnboarding\Filament\Resources\TourResource;
 use Arzcode\InfinitoOnboarding\Livewire\TourOverlay;
+use Arzcode\InfinitoOnboarding\Livewire\TourRecorder;
 use Closure;
 use Filament\Contracts\Plugin;
 use Filament\Facades\Filament;
@@ -170,6 +171,20 @@ class InfinitoOnboardingPlugin implements Plugin
     |--------------------------------------------------------------------------
     */
 
+    protected function renderRecorder(): string
+    {
+        $tour = TourRecorder::resolveTourForRequest(request());
+
+        if ($tour === null) {
+            return '';
+        }
+
+        return Blade::render('@livewire($component, $params)', [
+            'component' => TourRecorder::class,
+            'params' => ['tourId' => $tour->id],
+        ]);
+    }
+
     protected function registerOverlayHook(Panel $panel): void
     {
         $panelId = $panel->getId();
@@ -207,6 +222,10 @@ class InfinitoOnboardingPlugin implements Plugin
 
         if (Filament::auth()->guest()) {
             return '';
+        }
+
+        if (TourRecorder::isRecordRequest($this, request())) {
+            return $this->renderRecorder();
         }
 
         $tour = TourOverlay::resolveTourForRequest($this, request());

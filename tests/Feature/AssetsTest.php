@@ -9,9 +9,12 @@ it('registers the bundled script and stylesheet under the package name', functio
     $scripts = FilamentAsset::getScripts([InfinitoOnboardingServiceProvider::$assetPackage]);
     $styles = FilamentAsset::getStyles([InfinitoOnboardingServiceProvider::$assetPackage]);
 
-    expect($scripts)->toHaveCount(1)
+    expect($scripts)->toHaveCount(2)
         ->and($scripts[0])->toBeInstanceOf(Js::class)
         ->and($scripts[0]->getId())->toBe('infinito-onboarding')
+        ->and($scripts[0]->isLoadedOnRequest())->toBeFalse()
+        ->and($scripts[1]->getId())->toBe('infinito-onboarding-recorder')
+        ->and($scripts[1]->isLoadedOnRequest())->toBeTrue()
         ->and($styles)->toHaveCount(1)
         ->and($styles[0])->toBeInstanceOf(Css::class)
         ->and($styles[0]->getId())->toBe('infinito-onboarding');

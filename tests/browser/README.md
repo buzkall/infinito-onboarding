@@ -16,3 +16,14 @@ one missing target that must be skipped with a console warning, one centred
 step), completes it, then re-runs it and dismisses it with Escape and with the
 close button. It prints the DOM/event state after each action; every line
 should show the expected title, progress text and events.
+
+`recorder.smoke.js` loads `recorder.html` and checks record mode: selector
+scoring for a `data-tour` target (green), an element id (green), a
+`wire:key` ancestor (amber) and a generated CSS path (red, with the
+`->tourTarget()` hint), then walks through pick → hover → click → fill →
+add step, adds a second (red) step, previews the result with Driver.js and
+dismisses it with Escape.
+
+```bash
+node tests/browser/recorder.smoke.js
+```
