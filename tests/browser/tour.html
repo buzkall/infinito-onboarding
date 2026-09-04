@@ -1,0 +1,30 @@
+<!doctype html>
+<html>
+<head>
+  <link rel="stylesheet" href="../../resources/dist/infinito-onboarding.css">
+  <script src="../../resources/dist/infinito-onboarding.js"></script>
+  <script src="../../vendor/livewire/livewire/dist/livewire.js" data-csrf="x" data-update-uri="/livewire/update" data-navigate-once="true"></script>
+</head>
+<body>
+  <button data-tour="export">Export</button>
+  <div id="late"></div>
+  <script>
+    window.__events = []
+    for (const n of ['step', 'completed', 'dismissed']) {
+      window.addEventListener('infinito-onboarding:' + n, (e) => window.__events.push([n, e.detail?.step?.title ?? e.detail?.outcome ?? null]))
+    }
+    setTimeout(() => { const d = document.createElement('div'); d.id = 'late-target'; d.textContent = 'late'; document.getElementById('late').appendChild(d) }, 350)
+  </script>
+  <div x-data="infinitoOnboardingTour({
+      tour: { key: 'demo' },
+      steps: [
+        { target_type: 'data_tour', target: 'export', title: 'Export step', body: '<p>Body</p>', placement: 'bottom' },
+        { target_type: 'css', target: '#late-target', title: 'Late step', body: 'Appears later', placement: 'auto' },
+        { target_type: 'css', target: '#does-not-exist', title: 'Missing step', body: 'skip me', placement: 'auto' },
+        { target_type: 'none', target: null, title: 'Centred step', body: 'Done!', placement: 'auto' }
+      ],
+      onCompleted: () => { window.__completed = true },
+      onDismissed: () => { window.__dismissed = true },
+  })"></div>
+</body>
+</html>

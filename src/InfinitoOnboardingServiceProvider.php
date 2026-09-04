@@ -3,6 +3,10 @@
 namespace Arzcode\InfinitoOnboarding;
 
 use Arzcode\InfinitoOnboarding\Macros\TourTargetMacro;
+use Filament\Support\Assets\Asset;
+use Filament\Support\Assets\Css;
+use Filament\Support\Assets\Js;
+use Filament\Support\Facades\FilamentAsset;
 use Spatie\LaravelPackageTools\Package;
 use Spatie\LaravelPackageTools\PackageServiceProvider;
 
@@ -11,6 +15,8 @@ class InfinitoOnboardingServiceProvider extends PackageServiceProvider
     public static string $name = 'infinito-onboarding';
 
     public static string $viewNamespace = 'infinito-onboarding';
+
+    public static string $assetPackage = 'arzcode/infinito-onboarding';
 
     public function configurePackage(Package $package): void
     {
@@ -30,6 +36,22 @@ class InfinitoOnboardingServiceProvider extends PackageServiceProvider
     public function packageBooted(): void
     {
         TourTargetMacro::register();
+
+        FilamentAsset::register($this->getAssets(), package: static::$assetPackage);
+    }
+
+    /**
+     * Built with `npm run build`; the dist output is committed so consumers
+     * only need `php artisan filament:assets`.
+     *
+     * @return array<Asset>
+     */
+    protected function getAssets(): array
+    {
+        return [
+            Js::make('infinito-onboarding', __DIR__ . '/../resources/dist/infinito-onboarding.js'),
+            Css::make('infinito-onboarding', __DIR__ . '/../resources/dist/infinito-onboarding.css'),
+        ];
     }
 
     /**

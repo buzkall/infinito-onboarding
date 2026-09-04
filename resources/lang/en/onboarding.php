@@ -19,7 +19,6 @@ return [
         'right' => 'Right',
         'bottom' => 'Bottom',
         'left' => 'Left',
-        'over' => 'Over',
     ],
 
     'overlay' => [

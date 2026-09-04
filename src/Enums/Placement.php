@@ -11,7 +11,6 @@ enum Placement: string implements HasLabel
     case Right = 'right';
     case Bottom = 'bottom';
     case Left = 'left';
-    case Over = 'over';
 
     public function getLabel(): string
     {
