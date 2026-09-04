@@ -102,6 +102,12 @@ return [
         'unsaved' => 'Unsaved changes',
     ],
 
+    'changelog' => [
+        'heading' => "What's new",
+        'trigger' => "What's new",
+        'got_it' => 'Got it',
+    ],
+
     'overlay' => [
         'next' => 'Next',
         'previous' => 'Back',

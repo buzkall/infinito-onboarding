@@ -2,6 +2,7 @@
 
 namespace Arzcode\InfinitoOnboarding;
 
+use Arzcode\InfinitoOnboarding\Livewire\ChangelogTrigger;
 use Arzcode\InfinitoOnboarding\Livewire\TourOverlay;
 use Arzcode\InfinitoOnboarding\Livewire\TourRecorder;
 use Arzcode\InfinitoOnboarding\Macros\TourTargetMacro;
@@ -56,6 +57,7 @@ class InfinitoOnboardingServiceProvider extends PackageServiceProvider
         return [
             'infinito-onboarding.tour-overlay' => TourOverlay::class,
             'infinito-onboarding.tour-recorder' => TourRecorder::class,
+            'infinito-onboarding.changelog-trigger' => ChangelogTrigger::class,
         ];
     }
 

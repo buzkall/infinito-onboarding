@@ -3,6 +3,7 @@
 namespace Arzcode\InfinitoOnboarding;
 
 use Arzcode\InfinitoOnboarding\Filament\Resources\TourResource;
+use Arzcode\InfinitoOnboarding\Livewire\ChangelogTrigger;
 use Arzcode\InfinitoOnboarding\Livewire\TourOverlay;
 use Arzcode\InfinitoOnboarding\Livewire\TourRecorder;
 use Closure;
@@ -33,6 +34,10 @@ class InfinitoOnboardingPlugin implements Plugin
 
     protected ?int $navigationSort = null;
 
+    protected bool|Closure $hasTopbarTrigger = false;
+
+    protected string $topbarTriggerHook = PanelsRenderHook::GLOBAL_SEARCH_AFTER;
+
     public static function make(): static
     {
         return app(static::class);
@@ -61,6 +66,7 @@ class InfinitoOnboardingPlugin implements Plugin
     public function boot(Panel $panel): void
     {
         $this->registerOverlayHook($panel);
+        $this->registerTopbarTriggerHook($panel);
     }
 
     /*
@@ -152,6 +158,26 @@ class InfinitoOnboardingPlugin implements Plugin
         return $this->navigationSort;
     }
 
+    /**
+     * Show a "What's new" button in the topbar with a dot badge while an
+     * unseen changelog exists. Users can re-open the latest changelogs from
+     * it at any time.
+     *
+     * @param  string  $hook  The panel render hook to render the button into.
+     */
+    public function topbarTrigger(bool|Closure $condition = true, string $hook = PanelsRenderHook::GLOBAL_SEARCH_AFTER): static
+    {
+        $this->hasTopbarTrigger = $condition;
+        $this->topbarTriggerHook = $hook;
+
+        return $this;
+    }
+
+    public function hasTopbarTrigger(): bool
+    {
+        return (bool) $this->evaluate($this->hasTopbarTrigger);
+    }
+
     public function isAuthorized(?Authenticatable $user = null): bool
     {
         $user ??= Filament::auth()->user();
@@ -170,6 +196,42 @@ class InfinitoOnboardingPlugin implements Plugin
     | Overlay
     |--------------------------------------------------------------------------
     */
+
+    protected function registerTopbarTriggerHook(Panel $panel): void
+    {
+        $panelId = $panel->getId();
+        $flag = "infinito-onboarding.topbar-trigger-hook.{$panelId}";
+
+        if (app()->bound($flag)) {
+            return;
+        }
+
+        app()->instance($flag, true);
+
+        FilamentView::registerRenderHook(
+            $this->topbarTriggerHook,
+            fn (): string => $this->renderTopbarTrigger($panelId),
+        );
+    }
+
+    public function renderTopbarTrigger(string $panelId): string
+    {
+        if (Filament::getCurrentPanel()?->getId() !== $panelId) {
+            return '';
+        }
+
+        if (! $this->isEnabled() || ! $this->hasTopbarTrigger()) {
+            return '';
+        }
+
+        if (Filament::auth()->guest()) {
+            return '';
+        }
+
+        return Blade::render('@livewire($component)', [
+            'component' => ChangelogTrigger::class,
+        ]);
+    }
 
     protected function renderRecorder(): string
     {
