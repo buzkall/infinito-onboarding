@@ -2,6 +2,7 @@
 
 namespace Arzcode\InfinitoOnboarding;
 
+use Arzcode\InfinitoOnboarding\Macros\TourTargetMacro;
 use Spatie\LaravelPackageTools\Package;
 use Spatie\LaravelPackageTools\PackageServiceProvider;
 
@@ -28,7 +29,7 @@ class InfinitoOnboardingServiceProvider extends PackageServiceProvider
 
     public function packageBooted(): void
     {
-        //
+        TourTargetMacro::register();
     }
 
     /**

@@ -79,3 +79,8 @@ A selector that matches more than one element is always red.
 
 - `?onboarding-preview=1` forces the overlay to run for the current user regardless of seen-state (authorised users only).
 - `?onboarding-record=<tour-key>` activates record mode (authorised users only).
+
+## Testing gotchas
+
+- **Provider order matters.** `Filament\Support\SupportServiceProvider` must be registered *before* `Livewire\LivewireServiceProvider` in `tests/TestCase.php`. Filament rebinds Livewire's `DataStore` to its own subclass; if Livewire registers first, every `app(DataStore::class)` call returns a fresh instance and component state (error bags, etc.) vanishes with a `ViewErrorBag::put(): Argument #2 must be of type MessageBag, null given` error.
+- Rendered-HTML assertions use Livewire fixtures in `tests/Fixtures/Livewire` (`FormFixture`, `TableFixture`) and `Livewire::test(...)->assertSeeHtml(...)`.
