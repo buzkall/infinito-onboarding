@@ -1,0 +1,13 @@
+/vendor/
+/node_modules/
+/build/
+/.phpunit.cache/
+/.phpunit.result.cache
+/.phpstan.cache/
+/.idea/
+/.vscode/
+/.DS_Store
+composer.lock
+package-lock.json
+phpunit.xml
+phpstan.neon.dist.local
