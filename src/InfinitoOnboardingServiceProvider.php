@@ -2,6 +2,8 @@
 
 namespace Arzcode\InfinitoOnboarding;
 
+use Arzcode\InfinitoOnboarding\Commands\ExportToursCommand;
+use Arzcode\InfinitoOnboarding\Commands\ImportToursCommand;
 use Arzcode\InfinitoOnboarding\Livewire\ChangelogTrigger;
 use Arzcode\InfinitoOnboarding\Livewire\TourOverlay;
 use Arzcode\InfinitoOnboarding\Livewire\TourRecorder;
@@ -30,7 +32,8 @@ class InfinitoOnboardingServiceProvider extends PackageServiceProvider
             ->hasConfigFile()
             ->hasViews(static::$viewNamespace)
             ->hasTranslations()
-            ->hasMigrations($this->getMigrations());
+            ->hasMigrations($this->getMigrations())
+            ->hasCommands($this->getCommands());
     }
 
     public function packageRegistered(): void
@@ -74,6 +77,17 @@ class InfinitoOnboardingServiceProvider extends PackageServiceProvider
             // Only injected by the recorder view, so normal pages never load it.
             Js::make('infinito-onboarding-recorder', __DIR__ . '/../resources/dist/recorder.js')->loadedOnRequest(),
             Css::make('infinito-onboarding', __DIR__ . '/../resources/dist/infinito-onboarding.css'),
+        ];
+    }
+
+    /**
+     * @return array<class-string>
+     */
+    protected function getCommands(): array
+    {
+        return [
+            ExportToursCommand::class,
+            ImportToursCommand::class,
         ];
     }
 

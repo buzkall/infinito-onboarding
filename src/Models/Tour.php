@@ -4,6 +4,7 @@ namespace Arzcode\InfinitoOnboarding\Models;
 
 use Arzcode\InfinitoOnboarding\Database\Factories\TourFactory;
 use Arzcode\InfinitoOnboarding\Enums\TourMode;
+use Arzcode\InfinitoOnboarding\Support\TourDefinition;
 use Carbon\CarbonImmutable;
 use Filament\Facades\Filament;
 use Illuminate\Database\Eloquent\Builder;
@@ -67,6 +68,15 @@ class Tour extends Model
     protected static function newFactory(): TourFactory
     {
         return TourFactory::new();
+    }
+
+    /**
+     * Code-first authoring: builds a definition that syncs into the database
+     * by key when save() is called.
+     */
+    public static function define(string $key): TourDefinition
+    {
+        return TourDefinition::make($key);
     }
 
     /*
