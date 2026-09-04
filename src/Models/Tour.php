@@ -5,6 +5,7 @@ namespace Arzcode\InfinitoOnboarding\Models;
 use Arzcode\InfinitoOnboarding\Database\Factories\TourFactory;
 use Arzcode\InfinitoOnboarding\Enums\TourMode;
 use Carbon\CarbonImmutable;
+use Filament\Facades\Filament;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -198,6 +199,23 @@ class Tour extends Model
         }
 
         return true;
+    }
+
+    /**
+     * A URL where the tour can be previewed: the route pattern up to its first
+     * wildcard (or the panel root when there is none), with the preview flag.
+     */
+    public function getPreviewUrl(): string
+    {
+        $pattern = (string) Str::of((string) $this->route_pattern)->before(',')->before('*')->trim()->trim('/');
+
+        if ($pattern === '') {
+            $pattern = trim((string) (Filament::getCurrentPanel()?->getPath() ?? ''), '/');
+        }
+
+        $parameter = (string) config('infinito-onboarding.query_parameters.preview', 'onboarding-preview');
+
+        return url($pattern) . '?' . http_build_query([$parameter => $this->key]);
     }
 
     public function isChangelog(): bool

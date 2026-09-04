@@ -19,6 +19,7 @@ class AdminPanelProvider extends PanelProvider
             ->pages([Dashboard::class])
             ->plugin(
                 InfinitoOnboardingPlugin::make()
+                    ->resource()
                     ->authorize(fn (User $user): bool => in_array('tour-author', $user->roles ?? [], true)),
             );
     }

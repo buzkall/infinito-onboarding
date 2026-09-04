@@ -2,6 +2,7 @@
 
 namespace Arzcode\InfinitoOnboarding;
 
+use Arzcode\InfinitoOnboarding\Filament\Resources\TourResource;
 use Arzcode\InfinitoOnboarding\Livewire\TourOverlay;
 use Closure;
 use Filament\Contracts\Plugin;
@@ -12,6 +13,7 @@ use Filament\Support\Facades\FilamentView;
 use Filament\View\PanelsRenderHook;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Support\Facades\Blade;
+use UnitEnum;
 
 class InfinitoOnboardingPlugin implements Plugin
 {
@@ -20,6 +22,15 @@ class InfinitoOnboardingPlugin implements Plugin
     protected bool|Closure $isEnabled = true;
 
     protected ?Closure $authorizeUsing = null;
+
+    protected bool|Closure $hasResource = false;
+
+    /** @var class-string<TourResource> */
+    protected string $resourceClass = TourResource::class;
+
+    protected string|UnitEnum|null $navigationGroup = null;
+
+    protected ?int $navigationSort = null;
 
     public static function make(): static
     {
@@ -41,7 +52,9 @@ class InfinitoOnboardingPlugin implements Plugin
 
     public function register(Panel $panel): void
     {
-        //
+        if ($this->hasResource()) {
+            $panel->resources([$this->resourceClass]);
+        }
     }
 
     public function boot(Panel $panel): void
@@ -81,6 +94,61 @@ class InfinitoOnboardingPlugin implements Plugin
         $this->authorizeUsing = $callback;
 
         return $this;
+    }
+
+    /**
+     * Register the TourResource in the panel so tours can be managed from the
+     * UI. Off by default; call it before passing the plugin to the panel:
+     * `InfinitoOnboardingPlugin::make()->resource()`.
+     *
+     * @param  class-string<TourResource>|null  $resource  A subclass to customise the resource.
+     */
+    public function resource(bool|Closure $condition = true, ?string $resource = null): static
+    {
+        $this->hasResource = $condition;
+
+        if ($resource !== null) {
+            $this->resourceClass = $resource;
+        }
+
+        return $this;
+    }
+
+    public function hasResource(): bool
+    {
+        return (bool) $this->evaluate($this->hasResource);
+    }
+
+    /**
+     * @return class-string<TourResource>
+     */
+    public function getResourceClass(): string
+    {
+        return $this->resourceClass;
+    }
+
+    public function navigationGroup(string|UnitEnum|null $group): static
+    {
+        $this->navigationGroup = $group;
+
+        return $this;
+    }
+
+    public function getNavigationGroup(): string|UnitEnum|null
+    {
+        return $this->navigationGroup;
+    }
+
+    public function navigationSort(?int $sort): static
+    {
+        $this->navigationSort = $sort;
+
+        return $this;
+    }
+
+    public function getNavigationSort(): ?int
+    {
+        return $this->navigationSort;
     }
 
     public function isAuthorized(?Authenticatable $user = null): bool
