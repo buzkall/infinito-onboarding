@@ -17,7 +17,8 @@ class InfinitoOnboardingServiceProvider extends PackageServiceProvider
             ->name(static::$name)
             ->hasConfigFile()
             ->hasViews(static::$viewNamespace)
-            ->hasTranslations();
+            ->hasTranslations()
+            ->hasMigrations($this->getMigrations());
     }
 
     public function packageRegistered(): void
@@ -28,5 +29,17 @@ class InfinitoOnboardingServiceProvider extends PackageServiceProvider
     public function packageBooted(): void
     {
         //
+    }
+
+    /**
+     * @return array<string>
+     */
+    protected function getMigrations(): array
+    {
+        return [
+            'create_onboarding_tours_table',
+            'create_onboarding_tour_steps_table',
+            'create_onboarding_tour_completions_table',
+        ];
     }
 }

@@ -70,6 +70,14 @@ class TestCase extends Orchestra
     protected function defineDatabaseMigrations(): void
     {
         $this->loadMigrationsFrom(__DIR__ . '/Fixtures/migrations');
-        $this->loadMigrationsFrom(__DIR__ . '/../database/migrations');
+
+        foreach ([
+            'create_onboarding_tours_table',
+            'create_onboarding_tour_steps_table',
+            'create_onboarding_tour_completions_table',
+        ] as $migration) {
+            $migration = include __DIR__ . "/../database/migrations/{$migration}.php.stub";
+            $migration->up();
+        }
     }
 }
