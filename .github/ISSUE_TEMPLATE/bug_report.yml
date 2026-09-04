@@ -1,0 +1,30 @@
+name: Bug report
+description: Something does not work as documented
+labels: [bug]
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: What happened?
+      description: What did you expect, and what happened instead? Include console output for "target not found" problems.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: How to reproduce
+      description: Steps, and ideally the tour JSON (`php artisan onboarding:export <key>`) or the `Tour::define()` code.
+    validations:
+      required: true
+  - type: input
+    id: versions
+    attributes:
+      label: Versions
+      placeholder: "infinito-onboarding x.y.z, Filament 5.x, Livewire 4.x, Laravel 12.x, PHP 8.3"
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options: [Overlay / Driver.js, Resolver / seen-state, Record mode, Changelog mode, TourResource, Builder / import-export, Other]

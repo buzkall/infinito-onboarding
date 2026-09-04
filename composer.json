@@ -1,7 +1,16 @@
 {
     "name": "arzcode/infinito-onboarding",
     "description": "Announce what's new in your Filament panel with DB-managed, visually authored guided tours.",
-    "keywords": ["filament", "filamentphp", "laravel", "livewire", "onboarding", "product-tour", "driverjs", "whats-new"],
+    "keywords": [
+        "filament",
+        "filamentphp",
+        "laravel",
+        "livewire",
+        "onboarding",
+        "product-tour",
+        "driverjs",
+        "whats-new"
+    ],
     "homepage": "https://github.com/buzkall/infinito-onboarding",
     "license": "MIT",
     "authors": [
@@ -11,10 +20,15 @@
             "role": "Developer"
         }
     ],
+    "support": {
+        "issues": "https://github.com/buzkall/infinito-onboarding/issues",
+        "source": "https://github.com/buzkall/infinito-onboarding"
+    },
     "require": {
         "php": "^8.3",
         "filament/filament": "^5.0",
-        "spatie/laravel-package-tools": "^1.16"
+        "spatie/laravel-package-tools": "^1.16",
+        "illuminate/contracts": "^12.0|^13.0"
     },
     "require-dev": {
         "larastan/larastan": "^3.0",
