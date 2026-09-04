@@ -65,6 +65,29 @@ class TourResolver
     }
 
     /**
+     * Preview for tour authors: ignores seen-state. With a key, the tour is
+     * loaded directly (even unpublished / out of window) so authors can check
+     * a draft on the real page; without one, the first otherwise-eligible tour
+     * for the route is returned.
+     */
+    public function resolveForPreview(
+        Authenticatable $user,
+        string $currentRoute,
+        ?string $tenantId = null,
+        ?string $key = null,
+    ): ?Tour {
+        if ($key !== null) {
+            return Tour::query()->with('steps')->where('key', $key)->first();
+        }
+
+        return $this->eligibleQuery($currentRoute, $tenantId, null)
+            ->get()
+            ->first(fn (Tour $tour): bool => $tour->matchesRoute($currentRoute)
+                && $this->passesTenant($tour, $tenantId)
+                && $this->passesAudience($tour, $user));
+    }
+
+    /**
      * Whether a specific tour would be shown to the user right now.
      */
     public function passes(Tour $tour, Authenticatable $user, string $currentRoute, ?string $tenantId = null): bool

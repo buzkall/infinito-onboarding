@@ -1,0 +1,236 @@
+<?php
+
+namespace Arzcode\InfinitoOnboarding\Livewire;
+
+use Arzcode\InfinitoOnboarding\InfinitoOnboardingPlugin;
+use Arzcode\InfinitoOnboarding\Models\Tour;
+use Arzcode\InfinitoOnboarding\Models\TourCompletion;
+use Arzcode\InfinitoOnboarding\Support\TourResolver;
+use Filament\Facades\Filament;
+use Illuminate\Contracts\Auth\Authenticatable;
+use Illuminate\Contracts\View\View;
+use Illuminate\Database\UniqueConstraintViolationException;
+use Illuminate\Http\Request;
+use Livewire\Attributes\Locked;
+use Livewire\Component;
+
+/**
+ * Renders the tour payload for the Alpine `infinitoOnboardingTour` component
+ * and persists the seen-state when the user completes or dismisses it.
+ */
+class TourOverlay extends Component
+{
+    /** The tour to show. Null resolves it on mount from the current request. */
+    #[Locked]
+    public ?int $tourId = null;
+
+    /** Preview mode: forced by an authorised user, never persists seen-state. */
+    #[Locked]
+    public bool $preview = false;
+
+    /** The page path captured on first render (later Livewire requests hit /livewire/update). */
+    #[Locked]
+    public ?string $path = null;
+
+    #[Locked]
+    public ?string $tenantId = null;
+
+    public function mount(): void
+    {
+        $this->path ??= request()->path();
+        $this->tenantId ??= static::currentTenantId();
+
+        if ($this->tourId === null) {
+            $plugin = static::plugin();
+            $this->preview = $plugin !== null && static::isPreviewRequest($plugin, request());
+            $this->tourId = static::resolveTour($this->user(), $this->path, $this->tenantId, $this->preview, static::previewKey(request()))?->id;
+        }
+    }
+
+    public function getTour(): ?Tour
+    {
+        if ($this->tourId === null) {
+            return null;
+        }
+
+        return Tour::query()->with('steps')->find($this->tourId);
+    }
+
+    public function markCompleted(): void
+    {
+        $this->persist(completed: true);
+    }
+
+    public function markDismissed(): void
+    {
+        $this->persist(completed: false);
+    }
+
+    protected function persist(bool $completed): void
+    {
+        $tour = $this->getTour();
+        $user = $this->user();
+
+        if ($tour === null || $user === null || $this->preview) {
+            return;
+        }
+
+        $attributes = [
+            'tour_id' => $tour->id,
+            'user_id' => (string) $user->getAuthIdentifier(),
+            'tenant_id' => TourCompletion::normalizeTenantId($this->tenantId),
+            'seen_version' => $tour->version,
+        ];
+
+        $values = $completed
+            ? ['completed_at' => now()]
+            : ['dismissed_at' => now()];
+
+        try {
+            TourCompletion::query()->updateOrCreate($attributes, $values);
+        } catch (UniqueConstraintViolationException) {
+            // A concurrent request already stored the seen-state; nothing to do.
+        }
+    }
+
+    public function render(): View
+    {
+        $tour = $this->getTour();
+
+        /** @var view-string $view */
+        $view = 'infinito-onboarding::livewire.tour-overlay';
+
+        return view($view, [
+            'tour' => $tour,
+            'payload' => $tour ? static::payloadFor($tour) : null,
+            'labels' => static::labels(),
+        ]);
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Helpers shared with the render hook
+    |--------------------------------------------------------------------------
+    */
+
+    public static function resolveTourForRequest(InfinitoOnboardingPlugin $plugin, Request $request): ?Tour
+    {
+        $user = Filament::auth()->user();
+
+        if ($user === null) {
+            return null;
+        }
+
+        return static::resolveTour(
+            $user,
+            $request->path(),
+            static::currentTenantId(),
+            static::isPreviewRequest($plugin, $request),
+            static::previewKey($request),
+        );
+    }
+
+    public static function resolveTour(
+        ?Authenticatable $user,
+        string $path,
+        ?string $tenantId,
+        bool $preview = false,
+        ?string $previewKey = null,
+    ): ?Tour {
+        if ($user === null) {
+            return null;
+        }
+
+        /** @var TourResolver $resolver */
+        $resolver = app(TourResolver::class);
+
+        if ($preview) {
+            return $resolver->resolveForPreview($user, $path, $tenantId, $previewKey);
+        }
+
+        return $resolver->resolveFor($user, $path);
+    }
+
+    public static function isPreviewRequest(InfinitoOnboardingPlugin $plugin, Request $request): bool
+    {
+        $parameter = static::previewParameter();
+
+        if (! $request->filled($parameter)) {
+            return false;
+        }
+
+        return $plugin->isAuthorized();
+    }
+
+    public static function previewKey(Request $request): ?string
+    {
+        $value = $request->query(static::previewParameter());
+
+        if (! is_string($value) || $value === '' || in_array(strtolower($value), ['1', 'true', 'yes', 'on'], true)) {
+            return null;
+        }
+
+        return $value;
+    }
+
+    public static function previewParameter(): string
+    {
+        return (string) config('infinito-onboarding.query_parameters.preview', 'onboarding-preview');
+    }
+
+    public static function currentTenantId(): ?string
+    {
+        $tenant = Filament::getTenant();
+
+        return $tenant?->getKey() !== null ? (string) $tenant->getKey() : null;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public static function payloadFor(Tour $tour): array
+    {
+        return [
+            'tour' => [
+                'id' => $tour->id,
+                'key' => $tour->key,
+                'name' => $tour->name,
+                'mode' => $tour->mode->value,
+                'version' => $tour->version,
+            ],
+            'steps' => $tour->steps->map->toPayload()->values()->all(),
+        ];
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public static function labels(): array
+    {
+        return [
+            'next' => __('infinito-onboarding::onboarding.overlay.next'),
+            'previous' => __('infinito-onboarding::onboarding.overlay.previous'),
+            'done' => __('infinito-onboarding::onboarding.overlay.done'),
+            'progress' => __('infinito-onboarding::onboarding.overlay.progress', ['current' => '{{current}}', 'total' => '{{total}}']),
+        ];
+    }
+
+    protected function user(): ?Authenticatable
+    {
+        return Filament::auth()->user();
+    }
+
+    protected static function plugin(): ?InfinitoOnboardingPlugin
+    {
+        $panel = Filament::getCurrentPanel();
+
+        if ($panel === null || ! $panel->hasPlugin('infinito-onboarding')) {
+            return null;
+        }
+
+        /** @var InfinitoOnboardingPlugin $plugin */
+        $plugin = $panel->getPlugin('infinito-onboarding');
+
+        return $plugin;
+    }
+}

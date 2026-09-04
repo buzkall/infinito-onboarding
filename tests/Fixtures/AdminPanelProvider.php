@@ -3,6 +3,7 @@
 namespace Arzcode\InfinitoOnboarding\Tests\Fixtures;
 
 use Arzcode\InfinitoOnboarding\InfinitoOnboardingPlugin;
+use Filament\Pages\Dashboard;
 use Filament\Panel;
 use Filament\PanelProvider;
 
@@ -15,7 +16,10 @@ class AdminPanelProvider extends PanelProvider
             ->id('admin')
             ->path('admin')
             ->login()
-            ->pages([])
-            ->plugin(InfinitoOnboardingPlugin::make());
+            ->pages([Dashboard::class])
+            ->plugin(
+                InfinitoOnboardingPlugin::make()
+                    ->authorize(fn (User $user): bool => in_array('tour-author', $user->roles ?? [], true)),
+            );
     }
 }

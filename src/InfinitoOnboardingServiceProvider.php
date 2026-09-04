@@ -2,11 +2,14 @@
 
 namespace Arzcode\InfinitoOnboarding;
 
+use Arzcode\InfinitoOnboarding\Livewire\TourOverlay;
 use Arzcode\InfinitoOnboarding\Macros\TourTargetMacro;
 use Filament\Support\Assets\Asset;
 use Filament\Support\Assets\Css;
 use Filament\Support\Assets\Js;
 use Filament\Support\Facades\FilamentAsset;
+use Livewire\Component;
+use Livewire\Livewire;
 use Spatie\LaravelPackageTools\Package;
 use Spatie\LaravelPackageTools\PackageServiceProvider;
 
@@ -37,7 +40,21 @@ class InfinitoOnboardingServiceProvider extends PackageServiceProvider
     {
         TourTargetMacro::register();
 
+        foreach ($this->getLivewireComponents() as $alias => $class) {
+            Livewire::component($alias, $class);
+        }
+
         FilamentAsset::register($this->getAssets(), package: static::$assetPackage);
+    }
+
+    /**
+     * @return array<string, class-string<Component>>
+     */
+    protected function getLivewireComponents(): array
+    {
+        return [
+            'infinito-onboarding.tour-overlay' => TourOverlay::class,
+        ];
     }
 
     /**

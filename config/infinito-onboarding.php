@@ -18,4 +18,34 @@ return [
         'tour_completions' => 'onboarding_tour_completions',
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Query parameters
+    |--------------------------------------------------------------------------
+    |
+    | `preview` forces a tour to run for the current user regardless of
+    | seen-state (`?onboarding-preview=1` for the tour that would resolve, or
+    | `?onboarding-preview=<tour-key>` for a specific one). `record` activates
+    | the visual authoring mode (`?onboarding-record=<tour-key>`). Both are only
+    | honoured for users that pass the plugin's authorize() closure.
+    |
+    */
+
+    'query_parameters' => [
+        'preview' => 'onboarding-preview',
+        'record' => 'onboarding-record',
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Export path
+    |--------------------------------------------------------------------------
+    |
+    | Where `onboarding:export` writes tour JSON files and where
+    | `onboarding:import` reads them from.
+    |
+    */
+
+    'export_path' => database_path('tours'),
+
 ];
