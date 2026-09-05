@@ -383,3 +383,22 @@ body.io-recorder-picking * {
 .io-changelog-entry-body p:last-child { margin-bottom: 0; }
 .io-changelog-entry-body a { color: rgb(var(--primary-600, 79 70 229)); text-decoration: underline; }
 .io-changelog-trigger { display: flex; align-items: center; }
+
+/* ------------------------------------------------------------------------
+ * Analytics widget
+ * --------------------------------------------------------------------- */
+
+.io-analytics-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr)); gap: 0.75rem; margin-bottom: 1rem; }
+.io-analytics-stat { padding: 0.75rem; border-radius: 0.75rem; background: rgb(var(--gray-50, 249 250 251)); }
+.dark .io-analytics-stat { background: rgb(var(--gray-800, 31 41 55) / 0.5); }
+.io-analytics-stat-value { font-size: 1.5rem; font-weight: 600; line-height: 2rem; }
+.io-analytics-stat-label { font-size: 0.75rem; color: rgb(var(--gray-500, 107 114 128)); }
+.io-analytics-subheading { font-size: 0.875rem; font-weight: 600; margin: 1rem 0 0.5rem; }
+.io-analytics-warning { color: rgb(var(--danger-600, 220 38 38)); }
+.io-analytics-table { width: 100%; font-size: 0.875rem; border-collapse: collapse; }
+.io-analytics-table th, .io-analytics-table td { padding: 0.375rem 0.5rem; text-align: left; border-bottom: 1px solid rgb(var(--gray-200, 229 231 235)); }
+.dark .io-analytics-table th, .dark .io-analytics-table td { border-bottom-color: rgb(var(--gray-800, 31 41 55)); }
+.io-analytics-table th { font-weight: 500; color: rgb(var(--gray-500, 107 114 128)); font-size: 0.75rem; }
+.io-analytics-table .io-num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.io-analytics-bar { display: inline-block; width: 4rem; height: 0.375rem; margin-right: 0.5rem; border-radius: 9999px; vertical-align: middle; background: linear-gradient(to right, rgb(var(--primary-500, 99 102 241)) var(--io-pct, 0%), rgb(var(--gray-200, 229 231 235)) var(--io-pct, 0%)); }
+.io-analytics-hint { margin-top: 0.5rem; font-size: 0.75rem; color: rgb(var(--gray-500, 107 114 128)); }

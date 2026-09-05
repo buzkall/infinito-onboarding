@@ -176,6 +176,14 @@ Tour::define('settings')
 - In the resource, the step form has an **Open this first** repeater and an **Advance when the element is clicked** toggle. In record mode, the editor offers **Pick element to click first**.
 - Targets that are still missing after their preconditions are skipped with a console warning, in both directions.
 
+## Analytics
+
+Every tour records events (views, highlighted steps, completions, dismissals and *target not found* skips) per user, tenant and version. The tour's edit page shows a widget with views, unique viewers, completion rate, a per-step **reached / drop-off** table and the list of **missing selectors** with how often they failed, so you know which component still needs a `->tourTarget()`.
+
+- Disable with `'analytics' => ['enabled' => false]` in the config. Preview and record mode never record events.
+- Retention: `php artisan onboarding:prune-events` deletes events older than `analytics.prune_after_days` (default 90). Schedule it daily.
+- Query the data yourself through `Arzcode\InfinitoOnboarding\Models\TourEvent` or `Support\TourAnalytics::summary($tour)`.
+
 ## Changelog mode
 
 Set `mode = changelog` (resource) or call `->changelog()` on the builder. Instead of Driver.js, the tour renders as a single modal listing its steps as release-note entries (title + body). It uses the same resolver and seen-state, so it also shows once per user per version.

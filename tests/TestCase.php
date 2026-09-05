@@ -75,6 +75,7 @@ class TestCase extends Orchestra
             'create_onboarding_tours_table',
             'create_onboarding_tour_steps_table',
             'create_onboarding_tour_completions_table',
+            'create_onboarding_tour_events_table',
         ] as $migration) {
             $migration = include __DIR__ . "/../database/migrations/{$migration}.php.stub";
             $migration->up();

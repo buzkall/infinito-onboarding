@@ -3,6 +3,7 @@
 namespace Arzcode\InfinitoOnboarding\Filament\Resources\TourResource\Pages;
 
 use Arzcode\InfinitoOnboarding\Filament\Resources\TourResource;
+use Arzcode\InfinitoOnboarding\Filament\Widgets\TourAnalyticsWidget;
 use Filament\Actions\DeleteAction;
 use Filament\Resources\Pages\EditRecord;
 
@@ -17,6 +18,13 @@ class EditTour extends EditRecord
     protected function mutateFormDataBeforeSave(array $data): array
     {
         return TourResource::mutateFormData($data);
+    }
+
+    protected function getFooterWidgets(): array
+    {
+        return [
+            TourAnalyticsWidget::class,
+        ];
     }
 
     protected function getHeaderActions(): array

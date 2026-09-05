@@ -16,6 +16,7 @@ return [
         'tours' => 'onboarding_tours',
         'tour_steps' => 'onboarding_tour_steps',
         'tour_completions' => 'onboarding_tour_completions',
+        'tour_events' => 'onboarding_tour_events',
     ],
 
     /*
@@ -47,5 +48,21 @@ return [
     */
 
     'export_path' => database_path('tours'),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Analytics
+    |--------------------------------------------------------------------------
+    |
+    | Views, highlighted steps, completions, dismissals and missing targets
+    | are recorded in the events table and shown on the tour's edit page.
+    | `onboarding:prune-events` deletes events older than `prune_after_days`.
+    |
+    */
+
+    'analytics' => [
+        'enabled' => true,
+        'prune_after_days' => 90,
+    ],
 
 ];

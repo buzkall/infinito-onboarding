@@ -218,6 +218,21 @@ export function createTourRunner(config = {}) {
     let running = false
     let teardown = []
 
+    const report = (name, detail = {}) => {
+        if (typeof config.onEvent !== 'function') return
+
+        try {
+            config.onEvent(name, detail)
+        } catch (error) {
+            console.warn(`[${EVENT_PREFIX}] onEvent callback failed:`, error)
+        }
+    }
+
+    const missing = (step, selector) => {
+        console.warn(`[${EVENT_PREFIX}] target not found for step "${step.title ?? step.id ?? '?'}" (selector: ${selector}); skipping.`)
+        report('target_missing', { step_id: step.id ?? null, step_title: step.title ?? null, selector, target_type: step.target_type ?? null, target: step.target ?? null })
+    }
+
     const finish = (outcome) => {
         const detail = { tour, outcome }
 
@@ -321,9 +336,7 @@ export function createTourRunner(config = {}) {
             const element = await waitForTarget(selector)
 
             if (!element) {
-                console.warn(
-                    `[${EVENT_PREFIX}] target not found for step "${step.title ?? step.id ?? '?'}" (selector: ${selector}); skipping.`,
-                )
+                missing(step, selector)
 
                 continue
             }
@@ -391,9 +404,7 @@ export function createTourRunner(config = {}) {
                     return
                 }
 
-                console.warn(
-                    `[${EVENT_PREFIX}] target not found for step "${step.title ?? step.id ?? '?'}" (selector: ${selector}); skipping.`,
-                )
+                missing(step, selector)
 
                 index += direction
             }
@@ -431,7 +442,7 @@ export function createTourRunner(config = {}) {
 
             if (!selector || (await waitForTarget(selector))) break
 
-            console.warn(`[${EVENT_PREFIX}] target not found for step "${step.title ?? step.id ?? '?'}" (selector: ${selector}); skipping.`)
+            missing(step, selector)
             firstIndex++
         }
 
@@ -459,12 +470,16 @@ export function createTourRunner(config = {}) {
             onHighlightStarted: (element, step, opts) => {
                 // onHighlightStarted (not onHighlighted) so fast clicks that
                 // interrupt Driver.js' animation still emit one event per step.
+                const payload = step?.data?.payload ?? null
+
                 dispatch('step', {
                     tour,
-                    step: step?.data?.payload ?? null,
+                    step: payload,
                     index: opts?.index ?? null,
                     element,
                 })
+
+                report('step', { step_id: payload?.id ?? null, index: opts?.index ?? null })
             },
             // Driver.js hands control to us for every exit path. We destroy
             // and finish ourselves instead of relying on onDestroyed, which
@@ -486,6 +501,7 @@ export function createTourRunner(config = {}) {
         })
 
         bind()
+        report('view', { index: firstIndex })
         instance.drive(firstIndex)
     }
 

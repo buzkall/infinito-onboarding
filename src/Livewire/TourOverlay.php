@@ -2,9 +2,12 @@
 
 namespace Arzcode\InfinitoOnboarding\Livewire;
 
+use Arzcode\InfinitoOnboarding\Enums\TourEventType;
 use Arzcode\InfinitoOnboarding\InfinitoOnboardingPlugin;
 use Arzcode\InfinitoOnboarding\Models\Tour;
 use Arzcode\InfinitoOnboarding\Models\TourCompletion;
+use Arzcode\InfinitoOnboarding\Models\TourEvent;
+use Arzcode\InfinitoOnboarding\Support\TourAnalytics;
 use Arzcode\InfinitoOnboarding\Support\TourResolver;
 use Filament\Facades\Filament;
 use Illuminate\Contracts\Auth\Authenticatable;
@@ -59,11 +62,69 @@ class TourOverlay extends Component
     public function markCompleted(): void
     {
         $this->persist(completed: true);
+        $this->record(TourEventType::Completed);
     }
 
     public function markDismissed(): void
     {
         $this->persist(completed: false);
+        $this->record(TourEventType::Dismissed);
+    }
+
+    /**
+     * Analytics reported by the browser: `view`, `step` (with step_id /
+     * index) and `target_missing` (with selector). Completed / dismissed are
+     * recorded server-side by the mark* actions.
+     *
+     * @param  array<string, mixed>  $meta
+     */
+    public function track(string $event, array $meta = []): void
+    {
+        if (! in_array($event, TourEventType::reportable(), true)) {
+            return;
+        }
+
+        $this->record(TourEventType::from($event), $meta);
+    }
+
+    /**
+     * @param  array<string, mixed>  $meta
+     */
+    protected function record(TourEventType $type, array $meta = []): void
+    {
+        if (! TourAnalytics::isEnabled() || $this->preview) {
+            return;
+        }
+
+        $tour = $this->getTour();
+        $user = $this->user();
+
+        if ($tour === null || $user === null) {
+            return;
+        }
+
+        $stepId = isset($meta['step_id']) && is_numeric($meta['step_id']) ? (int) $meta['step_id'] : null;
+
+        if ($stepId !== null && ! $tour->steps->contains('id', $stepId)) {
+            $stepId = null;
+        }
+
+        $meta = collect($meta)
+            ->only(['index', 'selector', 'step_title', 'target_type', 'target'])
+            ->map(fn (mixed $value): mixed => is_scalar($value) ? (is_string($value) ? mb_substr($value, 0, 500) : $value) : null)
+            ->filter(fn (mixed $value): bool => $value !== null)
+            ->all();
+
+        TourEvent::query()->create([
+            'tour_id' => $tour->id,
+            'step_id' => $stepId,
+            'user_id' => (string) $user->getAuthIdentifier(),
+            'tenant_id' => TourCompletion::normalizeTenantId($this->tenantId),
+            'version' => $tour->version,
+            'event' => $type,
+            'meta' => $meta === [] ? null : $meta,
+            'created_at' => now(),
+        ]);
     }
 
     protected function persist(bool $completed): void

@@ -119,6 +119,34 @@ return [
         'advance_on_click' => 'Advance when the element is clicked',
     ],
 
+    'analytics' => [
+        'heading' => 'Analytics',
+        'version' => 'Current version :version',
+        'all_versions' => 'All versions',
+        'show_all' => 'Show all versions',
+        'show_current' => 'Show current version only',
+        'empty' => 'No data yet.',
+        'steps' => 'Per step',
+        'missing_targets' => 'Missing targets',
+        'missing_targets_hint' => 'These selectors could not be found when the tour ran. Add ->tourTarget() to the component or fix the selector.',
+        'stats' => [
+            'views' => 'Views',
+            'unique_viewers' => 'Unique viewers',
+            'completed' => 'Completed',
+            'dismissed' => 'Dismissed',
+            'completion_rate' => 'Completion rate',
+        ],
+        'columns' => [
+            'step' => 'Step',
+            'reached' => 'Reached',
+            'reached_rate' => 'Reached %',
+            'drop_off' => 'Drop-off',
+            'selector' => 'Selector',
+            'count' => 'Times',
+            'last_seen' => 'Last seen',
+        ],
+    ],
+
     'changelog' => [
         'heading' => "What's new",
         'trigger' => "What's new",

@@ -4,6 +4,7 @@ namespace Arzcode\InfinitoOnboarding;
 
 use Arzcode\InfinitoOnboarding\Commands\ExportToursCommand;
 use Arzcode\InfinitoOnboarding\Commands\ImportToursCommand;
+use Arzcode\InfinitoOnboarding\Commands\PruneEventsCommand;
 use Arzcode\InfinitoOnboarding\Livewire\ChangelogTrigger;
 use Arzcode\InfinitoOnboarding\Livewire\TourOverlay;
 use Arzcode\InfinitoOnboarding\Livewire\TourRecorder;
@@ -88,6 +89,7 @@ class InfinitoOnboardingServiceProvider extends PackageServiceProvider
         return [
             ExportToursCommand::class,
             ImportToursCommand::class,
+            PruneEventsCommand::class,
         ];
     }
 
@@ -100,6 +102,7 @@ class InfinitoOnboardingServiceProvider extends PackageServiceProvider
             'create_onboarding_tours_table',
             'create_onboarding_tour_steps_table',
             'create_onboarding_tour_completions_table',
+            'create_onboarding_tour_events_table',
         ];
     }
 }

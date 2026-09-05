@@ -33,8 +33,9 @@ Table names come from `config('infinito-onboarding.table_names')`. Defaults:
 | `tours` | `onboarding_tours` | `key` (unique), `name`, `description`, `mode` (`tour` \| `changelog`), `route_pattern`, `version`, `published_at`, `starts_at`, `ends_at`, `audience` (json), `tenant_id`, `sort`, `is_active` |
 | `tour_steps` | `onboarding_tour_steps` | `tour_id`, `order`, `target_type` (`data_tour` \| `css` \| `none`), `target`, `title`, `body`, `placement`, `extra` (json) |
 | `tour_completions` | `onboarding_tour_completions` | `tour_id`, `user_id`, `tenant_id`, `seen_version`, `completed_at`, `dismissed_at` — **unique on** (`tour_id`, `user_id`, `tenant_id`, `seen_version`) |
+| `tour_events` | `onboarding_tour_events` | analytics: `tour_id`, `step_id` (nullable), `user_id`, `tenant_id`, `version`, `event` (`view` \| `step` \| `completed` \| `dismissed` \| `target_missing`), `meta` (json), `created_at` |
 
-Models: `Models\Tour`, `Models\TourStep`, `Models\TourCompletion`. Enums: `Enums\TourMode`, `Enums\TargetType`, `Enums\Placement`. `audience` and `extra` cast to `array`; dates cast to `immutable_datetime`.
+Models: `Models\Tour`, `Models\TourStep`, `Models\TourCompletion`, `Models\TourEvent`. Enums: `Enums\TourMode`, `Enums\TargetType`, `Enums\Placement`, `Enums\TourEventType`. `audience` and `extra` cast to `array`; dates cast to `immutable_datetime`.
 
 ## Resolver rule (server-side, per page load)
 

@@ -4,6 +4,15 @@ All notable changes to `arzcode/infinito-onboarding` are documented here. The fo
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-09-05
+
+### Added
+
+- Analytics: `onboarding_tour_events` table (publish the new migration) storing `view`, `step`, `completed`, `dismissed` and `target_missing` events per user / tenant / version. The overlay reports view, step and missing-target events from the browser; completions and dismissals are recorded server-side.
+- `TourAnalytics::summary()` with views, unique viewers, completion rate, per-step reached / drop-off and missing selectors, shown in a widget on the tour's edit page (current version or all versions).
+- `onboarding:prune-events {--days=}` command and `analytics.enabled` / `analytics.prune_after_days` config.
+- Runner `onEvent` callback.
+
 ## [0.2.0] - 2026-09-05
 
 ### Added
