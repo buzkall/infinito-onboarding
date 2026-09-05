@@ -72,6 +72,60 @@ class TourOverlay extends Component
     }
 
     /**
+     * Hint mode: the user dismissed one beacon. When every hint of the tour
+     * has been dismissed the tour counts as completed.
+     */
+    public function dismissHint(int $stepId): void
+    {
+        $tour = $this->getTour();
+        $user = $this->user();
+
+        if ($tour === null || $user === null || $this->preview || ! $tour->isHint()) {
+            return;
+        }
+
+        if (! $tour->steps->contains('id', $stepId)) {
+            return;
+        }
+
+        $attributes = [
+            'tour_id' => $tour->id,
+            'user_id' => (string) $user->getAuthIdentifier(),
+            'tenant_id' => TourCompletion::normalizeTenantId($this->tenantId),
+            'seen_version' => $tour->version,
+        ];
+
+        try {
+            /** @var TourCompletion $completion */
+            $completion = TourCompletion::query()->firstOrCreate($attributes);
+        } catch (UniqueConstraintViolationException) {
+            /** @var TourCompletion $completion */
+            $completion = TourCompletion::query()->where($attributes)->firstOrFail();
+        }
+
+        if (in_array($stepId, $completion->getDismissedStepIds(), true)) {
+            return;
+        }
+
+        $dismissed = array_values(array_unique([...$completion->getDismissedStepIds(), $stepId]));
+        $remaining = $tour->steps->pluck('id')->map(fn ($id): int => (int) $id)->diff($dismissed);
+
+        $completion->meta = [...($completion->meta ?? []), 'dismissed_steps' => $dismissed];
+
+        if ($remaining->isEmpty()) {
+            $completion->completed_at ??= now();
+        }
+
+        $completion->save();
+
+        $this->record(TourEventType::Step, ['step_id' => $stepId, 'hint_dismissed' => true]);
+
+        if ($remaining->isEmpty()) {
+            $this->record(TourEventType::Completed);
+        }
+    }
+
+    /**
      * Analytics reported by the browser: `view`, `step` (with step_id /
      * index) and `target_missing` (with selector). Completed / dismissed are
      * recorded server-side by the mark* actions.
@@ -110,7 +164,7 @@ class TourOverlay extends Component
         }
 
         $meta = collect($meta)
-            ->only(['index', 'selector', 'step_title', 'target_type', 'target'])
+            ->only(['index', 'selector', 'step_title', 'target_type', 'target', 'hint_dismissed'])
             ->map(fn (mixed $value): mixed => is_scalar($value) ? (is_string($value) ? mb_substr($value, 0, 500) : $value) : null)
             ->filter(fn (mixed $value): bool => $value !== null)
             ->all();
@@ -161,9 +215,15 @@ class TourOverlay extends Component
         /** @var view-string $view */
         $view = 'infinito-onboarding::livewire.tour-overlay';
 
+        $payload = $tour ? static::payloadFor($tour) : null;
+
+        if ($tour?->isHint() && $payload !== null && ($user = $this->user()) !== null) {
+            $payload['dismissed_steps'] = $tour->completionFor($user->getAuthIdentifier(), $this->tenantId)?->getDismissedStepIds() ?? [];
+        }
+
         return view($view, [
             'tour' => $tour,
-            'payload' => $tour ? static::payloadFor($tour) : null,
+            'payload' => $payload,
             'labels' => static::labels(),
         ]);
     }
@@ -273,6 +333,9 @@ class TourOverlay extends Component
             'previous' => __('infinito-onboarding::onboarding.overlay.previous'),
             'done' => __('infinito-onboarding::onboarding.overlay.done'),
             'progress' => __('infinito-onboarding::onboarding.overlay.progress', ['current' => '{{current}}', 'total' => '{{total}}']),
+            'got_it' => __('infinito-onboarding::onboarding.hints.got_it'),
+            'dismiss_all' => __('infinito-onboarding::onboarding.hints.dismiss_all'),
+            'open_hint' => __('infinito-onboarding::onboarding.hints.open'),
         ];
     }
 

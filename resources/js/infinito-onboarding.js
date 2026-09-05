@@ -558,8 +558,253 @@ export function infinitoOnboardingTour(config = {}) {
     }
 }
 
+/**
+ * Hint mode: a pulsing beacon next to every step's target. Clicking a
+ * beacon highlights the element with the step's popover and a "Got it"
+ * button; dismissed hints disappear, and once all are gone the tour is
+ * completed.
+ *
+ *   <div x-data="infinitoOnboardingHints({ tour, steps, dismissed, labels, onDismissHint, onCompleted, onEvent })"></div>
+ */
+export function infinitoOnboardingHints(config = {}) {
+    const tour = config.tour ?? null
+    const labels = { got_it: 'Got it', open_hint: 'Open hint: :title', ...(config.labels ?? {}) }
+    const dismissed = new Set((Array.isArray(config.dismissed) ? config.dismissed : []).map(Number))
+
+    let beacons = []
+    let instance = null
+    let teardown = []
+    let frame = null
+
+    const report = (name, detail = {}) => {
+        if (typeof config.onEvent !== 'function') return
+
+        try {
+            config.onEvent(name, detail)
+        } catch (error) {
+            console.warn(`[${EVENT_PREFIX}] onEvent callback failed:`, error)
+        }
+    }
+
+    const position = (beacon) => {
+        const element = queryTarget(beacon.selector)
+
+        if (!element || !element.isConnected) {
+            beacon.node.hidden = true
+
+            return
+        }
+
+        const rect = element.getBoundingClientRect()
+
+        if (rect.width === 0 && rect.height === 0) {
+            beacon.node.hidden = true
+
+            return
+        }
+
+        beacon.node.hidden = false
+        beacon.node.style.top = `${rect.top + window.scrollY - 6}px`
+        beacon.node.style.left = `${rect.right + window.scrollX - 6}px`
+    }
+
+    const reposition = () => {
+        if (frame) return
+
+        frame = window.requestAnimationFrame(() => {
+            frame = null
+            beacons.forEach(position)
+        })
+    }
+
+    const remove = (beacon) => {
+        beacon.node.remove()
+        beacons = beacons.filter((candidate) => candidate !== beacon)
+    }
+
+    const closePopover = () => {
+        const current = instance
+
+        instance = null
+
+        try {
+            current?.destroy()
+        } catch (_) {
+            // Already gone.
+        }
+    }
+
+    const dismiss = (beacon) => {
+        closePopover()
+        dismissed.add(Number(beacon.step.id))
+        remove(beacon)
+
+        if (typeof config.onDismissHint === 'function' && beacon.step.id != null) {
+            config.onDismissHint(beacon.step.id)
+        }
+
+        dispatch('hint-dismissed', { tour, step: beacon.step })
+
+        if (beacons.length === 0) {
+            dispatch('completed', { tour, outcome: 'completed' })
+
+            if (typeof config.onCompleted === 'function' && beacon.step.id == null) {
+                config.onCompleted({ tour, outcome: 'completed' })
+            }
+        }
+    }
+
+    const open = (beacon) => {
+        const element = queryTarget(beacon.selector)
+
+        if (!element) {
+            reposition()
+
+            return
+        }
+
+        closePopover()
+
+        instance = driver({
+            popoverClass: 'io-popover io-hint-popover',
+            stagePadding: 6,
+            stageRadius: 8,
+            allowClose: true,
+            animate: true,
+            smoothScroll: true,
+            showButtons: [],
+            onDestroyStarted: () => closePopover(),
+            onPopoverRender: (popover) => {
+                const button = document.createElement('button')
+                button.type = 'button'
+                // Not a driver-popover-*-btn class: Driver.js captures clicks on
+                // those and would swallow ours.
+                button.className = 'io-hint-got-it'
+                button.textContent = labels.got_it
+                button.addEventListener('click', () => dismiss(beacon))
+
+                popover.footer.style.display = 'flex'
+                popover.footerButtons.innerHTML = ''
+                popover.footerButtons.appendChild(button)
+            },
+        })
+
+        instance.highlight({
+            element,
+            popover: {
+                title: beacon.step.title ?? '',
+                description: beacon.step.body ?? '',
+                ...placementFor(beacon.step),
+            },
+        })
+
+        dispatch('step', { tour, step: beacon.step, element })
+        report('step', { step_id: beacon.step.id ?? null })
+    }
+
+    const mountOne = async (step) => {
+        if (dismissed.has(Number(step.id))) return
+
+        const selector = selectorFor(step)
+
+        if (!selector) return
+
+        const element = await waitForTarget(selector)
+
+        if (!element) {
+            console.warn(`[${EVENT_PREFIX}] hint target not found for "${step.title ?? step.id ?? '?'}" (selector: ${selector}); skipping.`)
+            report('target_missing', { step_id: step.id ?? null, step_title: step.title ?? null, selector })
+
+            return
+        }
+
+        const node = document.createElement('button')
+        node.type = 'button'
+        node.className = 'io-beacon'
+        node.setAttribute('data-io-beacon', String(step.id ?? ''))
+        node.setAttribute('aria-label', labels.open_hint.replace(':title', step.title ?? ''))
+        node.innerHTML = '<span class="io-beacon-pulse"></span><span class="io-beacon-dot"></span>'
+
+        const beacon = { step, selector, node }
+
+        node.addEventListener('click', (event) => {
+            event.preventDefault()
+            event.stopPropagation()
+            open(beacon)
+        })
+
+        document.body.appendChild(node)
+        beacons.push(beacon)
+        position(beacon)
+    }
+
+    // Beacons mount concurrently so a missing target never delays the others.
+    const mount = async (steps) => {
+        await Promise.all(steps.map(mountOne))
+
+        if (beacons.length > 0) {
+            report('view', { hints: beacons.length })
+        }
+    }
+
+    const bind = () => {
+        window.addEventListener('scroll', reposition, true)
+        window.addEventListener('resize', reposition)
+        document.addEventListener('livewire:navigated', reposition)
+
+        teardown.push(() => window.removeEventListener('scroll', reposition, true))
+        teardown.push(() => window.removeEventListener('resize', reposition))
+        teardown.push(() => document.removeEventListener('livewire:navigated', reposition))
+
+        if (window.Livewire?.hook) {
+            for (const hook of ['morph.updated', 'morph.added', 'morph.removed', 'morphed']) {
+                try {
+                    window.Livewire.hook(hook, reposition)
+                } catch (_) {
+                    // Hook not available.
+                }
+            }
+        }
+
+        const interval = window.setInterval(reposition, 1000)
+        teardown.push(() => window.clearInterval(interval))
+    }
+
+    return {
+        init() {
+            bind()
+            this.$nextTick(() => mount(Array.isArray(config.steps) ? config.steps : []))
+        },
+
+        destroy() {
+            closePopover()
+            beacons.forEach((beacon) => beacon.node.remove())
+            beacons = []
+
+            while (teardown.length) teardown.pop()()
+        },
+
+        dismissAll() {
+            closePopover()
+            beacons.forEach((beacon) => beacon.node.remove())
+            beacons = []
+
+            if (typeof config.onCompleted === 'function') {
+                config.onCompleted({ tour, outcome: 'completed' })
+            }
+
+            dispatch('completed', { tour, outcome: 'completed' })
+        },
+
+        count() {
+            return beacons.length
+        },
+    }
+}
+
 function register(Alpine) {
     Alpine.data('infinitoOnboardingTour', infinitoOnboardingTour)
+    Alpine.data('infinitoOnboardingHints', infinitoOnboardingHints)
 }
 
 if (window.Alpine) {
@@ -570,6 +815,7 @@ if (window.Alpine) {
 
 window.InfinitoOnboarding = Object.assign(window.InfinitoOnboarding ?? {}, {
     tour: infinitoOnboardingTour,
+    hints: infinitoOnboardingHints,
     createTourRunner,
     runPreconditions,
     waitForLivewireIdle,

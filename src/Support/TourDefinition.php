@@ -129,6 +129,14 @@ class TourDefinition
     }
 
     /**
+     * Hint mode: persistent pulsing beacons next to each step's target.
+     */
+    public function hints(): static
+    {
+        return $this->mode(TourMode::Hint);
+    }
+
+    /**
      * Path pattern(s) the tour runs on, e.g. `admin/orders*`. Pass several to
      * match any of them.
      */

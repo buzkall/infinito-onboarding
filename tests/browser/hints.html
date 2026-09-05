@@ -1,0 +1,30 @@
+<!doctype html>
+<html>
+<head>
+  <link rel="stylesheet" href="../../resources/dist/infinito-onboarding.css">
+  <script src="../../resources/dist/infinito-onboarding.js"></script>
+  <script src="../../vendor/livewire/livewire/dist/livewire.js" data-csrf="x" data-update-uri="/livewire/update" data-navigate-once="true"></script>
+</head>
+<body style="height: 2000px">
+  <button data-tour="export" style="position:absolute; top: 300px; left: 100px">Export</button>
+  <div data-tour="filters" style="position:absolute; top: 900px; left: 200px; width: 120px; height: 40px">Filters</div>
+  <script>
+    window.__dismissed = []; window.__completed = false; window.__events = []
+    window.addEventListener('infinito-onboarding:hint-dismissed', (e) => window.__events.push(['hint-dismissed', e.detail.step.title]))
+  </script>
+  <div x-data="infinitoOnboardingHints({
+      tour: { key: 'hints' },
+      steps: [
+        { id: 1, target_type: 'data_tour', target: 'export', title: 'Export hint', body: '<p>New export</p>', placement: 'bottom' },
+        { id: 2, target_type: 'data_tour', target: 'filters', title: 'Filters hint', body: 'Filter faster', placement: 'auto' },
+        { id: 3, target_type: 'data_tour', target: 'missing', title: 'Missing hint', body: '', placement: 'auto' },
+        { id: 4, target_type: 'data_tour', target: 'export', title: 'Already dismissed', body: '', placement: 'auto' }
+      ],
+      dismissed: [4],
+      labels: { got_it: 'Got it', open_hint: 'Open hint: :title' },
+      onDismissHint: (id) => window.__dismissed.push(id),
+      onCompleted: () => { window.__completed = true },
+      onEvent: (name, detail) => window.__events.push([name, detail.step_id ?? detail.hints ?? null]),
+  })"></div>
+</body>
+</html>

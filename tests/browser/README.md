@@ -36,3 +36,13 @@ found and must be skipped in both directions, step 4 completes the tour.
 ```bash
 node tests/browser/preconditions.smoke.js
 ```
+
+`hints.smoke.js` loads `hints.html` (hint mode): two beacons are mounted next
+to their targets, one target is missing (skipped with a warning) and one
+hint is already dismissed; opening a beacon shows the popover with "Got it",
+dismissing removes the beacon, Escape keeps it, and dismissing the last one
+empties the page.
+
+```bash
+node tests/browser/hints.smoke.js
+```

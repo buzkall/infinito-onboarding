@@ -17,7 +17,7 @@ Classic onboarding tours run once for *new* users, live in code, and break the m
 | Shown | Once | Once **per version**: bump the version and everyone sees it again |
 | Targeting | CSS selectors | `->tourTarget('key')` on the Filament component, then id, `wire:key`, generated path |
 | Authoring | By hand | **Record mode**: click the element, write the copy, save |
-| Modes | Tour | Tour **and** changelog modal with a "What's new" topbar button |
+| Modes | Tour | Tour, **hints** (persistent beacons) **and** changelog modal with a "What's new" topbar button |
 
 ## Installation
 
@@ -157,6 +157,19 @@ php artisan onboarding:import --fresh      # also deletes tours missing from the
 ```
 
 The directory comes from `config('infinito-onboarding.export_path')`; both commands accept `--path=`. The JSON format has no ids, so a tour recorded on staging can be committed and imported in production.
+
+## Hint mode (beacons)
+
+Set `mode = hint` (or `->hints()` on the builder) and, instead of a guided tour, every step's target gets a **pulsing dot**. Clicking a dot highlights the element with the step's title and body and a **Got it** button; each dismissed hint disappears and stays dismissed per user and version, and the tour counts as completed once every hint is gone. Hints are persistent: they survive reloads until dismissed, which suits "there is a new button here" announcements that should not interrupt.
+
+```php
+Tour::define('new-toolbar')->hints()
+    ->step('export-orders', 'Export orders', 'Download CSV or XLSX.')
+    ->step('bulk-actions', 'Bulk actions', 'Select rows to see them.')
+    ->publish()->save();
+```
+
+The browser event `infinito-onboarding:hint-dismissed` fires per hint. Steps without a target are ignored in hint mode.
 
 ## Steps inside modals and tabs (preconditions)
 

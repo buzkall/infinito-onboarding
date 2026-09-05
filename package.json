@@ -5,7 +5,7 @@
     "scripts": {
         "build": "node bin/build.js",
         "dev": "node bin/build.js --dev",
-        "test:browser": "node tests/browser/tour.smoke.js && node tests/browser/recorder.smoke.js && node tests/browser/preconditions.smoke.js"
+        "test:browser": "node tests/browser/tour.smoke.js && node tests/browser/recorder.smoke.js && node tests/browser/preconditions.smoke.js && node tests/browser/hints.smoke.js"
     },
     "devDependencies": {
         "esbuild": "^0.28.2"

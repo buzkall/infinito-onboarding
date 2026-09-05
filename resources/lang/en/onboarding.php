@@ -5,6 +5,7 @@ return [
     'modes' => [
         'tour' => 'Guided tour',
         'changelog' => 'Changelog',
+        'hint' => 'Hints (beacons)',
     ],
 
     'target_types' => [
@@ -155,6 +156,12 @@ return [
         'heading' => "What's new",
         'trigger' => "What's new",
         'got_it' => 'Got it',
+    ],
+
+    'hints' => [
+        'got_it' => 'Got it',
+        'dismiss_all' => 'Dismiss all hints',
+        'open' => 'Open hint: :title',
     ],
 
     'overlay' => [

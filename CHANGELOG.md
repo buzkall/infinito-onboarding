@@ -4,6 +4,10 @@ All notable changes to `arzcode/infinito-onboarding` are documented here. The fo
 
 ## [Unreleased]
 
+### Added
+
+- Hint mode (`TourMode::Hint`, builder `->hints()`): a pulsing beacon next to every step's target, each opening the step's popover with a "Got it" button. Dismissals are stored per user and version in the new `meta` column of the completions table (publish the new migration); the tour is completed once all hints are dismissed, and a completion row now only counts as *seen* when it carries `completed_at` or `dismissed_at`. New Alpine component `infinitoOnboardingHints`, overlay action `dismissHint()`, browser event `infinito-onboarding:hint-dismissed`.
+
 ## [0.4.0] - 2026-09-05
 
 ### Added

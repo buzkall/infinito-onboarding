@@ -17,6 +17,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property string $seen_version
  * @property CarbonImmutable|null $completed_at
  * @property CarbonImmutable|null $dismissed_at
+ * @property array<string, mixed>|null $meta
  * @property-read Tour $tour
  */
 class TourCompletion extends Model
@@ -41,6 +42,7 @@ class TourCompletion extends Model
         return [
             'completed_at' => 'immutable_datetime',
             'dismissed_at' => 'immutable_datetime',
+            'meta' => 'array',
         ];
     }
 
@@ -81,6 +83,25 @@ class TourCompletion extends Model
         return $query
             ->where('user_id', (string) $userId)
             ->where('tenant_id', static::normalizeTenantId($tenantId));
+    }
+
+    /**
+     * Hint mode: ids of the hints the user already dismissed.
+     *
+     * @return array<int, int>
+     */
+    public function getDismissedStepIds(): array
+    {
+        return array_values(array_map('intval', array_filter((array) ($this->meta['dismissed_steps'] ?? []), 'is_numeric')));
+    }
+
+    /**
+     * Whether this row means the tour is done for the user: a completion or
+     * a dismissal. A hint-mode row that only tracks partial dismissals is not.
+     */
+    public function isFinished(): bool
+    {
+        return $this->completed_at !== null || $this->dismissed_at !== null;
     }
 
     public function isCompleted(): bool

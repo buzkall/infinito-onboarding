@@ -67,7 +67,8 @@ A selector that matches more than one element is always red.
 ## JavaScript rules
 
 - All JS is bundled **locally with esbuild** into `resources/dist/`. **Never** load from a CDN. The built `resources/dist/` output is committed so consumers do not need npm.
-- Entry points: `resources/js/infinito-onboarding.js` (tour runtime, Alpine component `infinitoOnboardingTour`) and `resources/js/recorder.js` (record mode, Alpine component `infinitoOnboardingRecorder`).
+- Entry points: `resources/js/infinito-onboarding.js` (tour runtime, Alpine components `infinitoOnboardingTour` and `infinitoOnboardingHints`) and `resources/js/recorder.js` (record mode, Alpine component `infinitoOnboardingRecorder`).
+- Hint mode (`TourMode::Hint`): beacons are `<button class="io-beacon">` elements appended to `body` and positioned from the target's bounding rect; per-hint dismissals live in `TourCompletion.meta.dismissed_steps`, and a completion row only counts as *seen* once `completed_at` or `dismissed_at` is set.
 - Browser events emitted: `infinito-onboarding:step`, `infinito-onboarding:completed`, `infinito-onboarding:dismissed`.
 - Livewire morph safety: listen for `livewire:navigated` and Livewire morph hooks (`Livewire.hook('morph.updated', ...)`) and call Driver.js `refresh()`. Missing targets are retried with backoff (5 attempts, 100 ms → 800 ms) and then skipped with a `console.warn` that includes the selector.
 - Styling uses Filament's CSS custom properties (`--primary-*`, `--gray-*`) so light/dark themes just work.

@@ -50,6 +50,11 @@ class TourFactory extends Factory
         return $this->state(fn () => ['mode' => TourMode::Changelog]);
     }
 
+    public function hints(): static
+    {
+        return $this->state(fn () => ['mode' => TourMode::Hint]);
+    }
+
     public function forRoute(string $pattern): static
     {
         return $this->state(fn () => ['route_pattern' => $pattern]);

@@ -251,6 +251,24 @@ class Tour extends Model
         return $this->completions()
             ->forUser($userId, $tenantId)
             ->where('seen_version', $this->version)
+            ->where(fn (Builder $query) => $query->whereNotNull('completed_at')->orWhereNotNull('dismissed_at'))
             ->exists();
+    }
+
+    public function isHint(): bool
+    {
+        return $this->mode === TourMode::Hint;
+    }
+
+    /**
+     * Hint mode: the current user's completion row for this version, holding
+     * the already-dismissed hint ids.
+     */
+    public function completionFor(string|int $userId, ?string $tenantId = null): ?TourCompletion
+    {
+        return $this->completions()
+            ->forUser($userId, $tenantId)
+            ->where('seen_version', $this->version)
+            ->first();
     }
 }
