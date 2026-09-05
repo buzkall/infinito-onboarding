@@ -2,6 +2,7 @@
 
 namespace Arzcode\InfinitoOnboarding\Models;
 
+use Arzcode\InfinitoOnboarding\Concerns\HasTranslatedContent;
 use Arzcode\InfinitoOnboarding\Database\Factories\TourStepFactory;
 use Arzcode\InfinitoOnboarding\Enums\Placement;
 use Arzcode\InfinitoOnboarding\Enums\TargetType;
@@ -18,6 +19,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property string $title
  * @property string|null $body
  * @property Placement $placement
+ * @property array<string, array<string, string|null>>|null $translations
  * @property array<string, mixed>|null $extra
  * @property-read Tour $tour
  */
@@ -25,6 +27,8 @@ class TourStep extends Model
 {
     /** @use HasFactory<TourStepFactory> */
     use HasFactory;
+
+    use HasTranslatedContent;
 
     protected $guarded = [];
 
@@ -40,6 +44,7 @@ class TourStep extends Model
             'order' => 'integer',
             'target_type' => TargetType::class,
             'placement' => Placement::class,
+            'translations' => 'array',
             'extra' => 'array',
         ];
     }
@@ -47,6 +52,14 @@ class TourStep extends Model
     public function getTable(): string
     {
         return config('infinito-onboarding.table_names.tour_steps', 'onboarding_tour_steps');
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    public function translatableAttributes(): array
+    {
+        return ['title', 'body'];
     }
 
     protected static function newFactory(): TourStepFactory
@@ -119,8 +132,8 @@ class TourStep extends Model
             'target_type' => $this->target_type->value,
             'target' => $this->target,
             'selector' => $this->getSelector(),
-            'title' => $this->title,
-            'body' => $this->body,
+            'title' => $this->translated('title'),
+            'body' => $this->translated('body'),
             'placement' => $this->placement->value,
             'before' => $this->getBeforeActions(),
             'advance_on_click' => $this->advancesOnClick(),

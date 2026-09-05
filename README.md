@@ -176,6 +176,28 @@ Tour::define('settings')
 - In the resource, the step form has an **Open this first** repeater and an **Advance when the element is clicked** toggle. In record mode, the editor offers **Pick element to click first**.
 - Targets that are still missing after their preconditions are skipped with a console warning, in both directions.
 
+## Multi-language content
+
+Set the locales you author in; the first one is the default and is stored in the normal columns, the others in a `translations` JSON column:
+
+```php
+// config/infinito-onboarding.php
+'locales' => ['en', 'es'],
+'locale_labels' => ['es' => 'Español'],
+```
+
+The tour and step forms then show a **Translations** tab per extra locale. At runtime the overlay uses the current app locale, then `fallback_locale` (defaults to the app's), then the default. No translation package is required; the builder and the JSON format carry translations too:
+
+```php
+Tour::define('q3')
+    ->translateTour('es', ['name' => 'Novedades del Q3'])
+    ->step('export-orders', 'Export orders', 'CSV and XLSX.')
+        ->translate('es', ['title' => 'Exportar pedidos', 'body' => 'CSV y XLSX.'])
+    ->save();
+```
+
+Read content through `$step->translated('title')` in your own code.
+
 ## Analytics
 
 Every tour records events (views, highlighted steps, completions, dismissals and *target not found* skips) per user, tenant and version. The tour's edit page shows a widget with views, unique viewers, completion rate, a per-step **reached / drop-off** table and the list of **missing selectors** with how often they failed, so you know which component still needs a `->tourTarget()`.

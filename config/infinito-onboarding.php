@@ -51,6 +51,27 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Locales
+    |--------------------------------------------------------------------------
+    |
+    | Locales tour content can be authored in, e.g. ['en', 'es']. The first
+    | one is the default and lives in the base columns; the others are stored
+    | in the `translations` JSON column and edited through per-locale tabs in
+    | the resource. Leave empty to use the app locale only. The overlay picks
+    | the current app locale, then `fallback_locale`, then the default.
+    |
+    */
+
+    'locales' => [],
+
+    'fallback_locale' => null,
+
+    'locale_labels' => [
+        // 'es' => 'Español',
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Analytics
     |--------------------------------------------------------------------------
     |

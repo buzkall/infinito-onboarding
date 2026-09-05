@@ -4,6 +4,12 @@ All notable changes to `arzcode/infinito-onboarding` are documented here. The fo
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-09-05
+
+### Added
+
+- Multi-language content: `translations` JSON column on tours and steps (publish the new migration), `Concerns\HasTranslatedContent` with `translated()` resolving current locale → fallback → default, `locales` / `fallback_locale` / `locale_labels` config, per-locale **Translations** tabs in the tour and step forms, builder `translate()` / `translateTour()`, and translations in the JSON interchange format. The overlay, the changelog modal and the topbar trigger render localised content.
+
 ## [0.3.0] - 2026-09-05
 
 ### Added

@@ -5,7 +5,7 @@
                 <x-infinito-onboarding::changelog-modal
                     :id="'io-changelog-' . $tour->id"
                     :tours="[$tour]"
-                    :heading="$tour->name"
+                    :heading="$tour->translated('name')"
                     :auto-open="true"
                 />
             </div>

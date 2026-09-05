@@ -119,6 +119,10 @@ return [
         'advance_on_click' => 'Advance when the element is clicked',
     ],
 
+    'translations' => [
+        'heading' => 'Translations',
+    ],
+
     'analytics' => [
         'heading' => 'Analytics',
         'version' => 'Current version :version',

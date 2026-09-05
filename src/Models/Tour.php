@@ -2,6 +2,7 @@
 
 namespace Arzcode\InfinitoOnboarding\Models;
 
+use Arzcode\InfinitoOnboarding\Concerns\HasTranslatedContent;
 use Arzcode\InfinitoOnboarding\Database\Factories\TourFactory;
 use Arzcode\InfinitoOnboarding\Enums\TourMode;
 use Arzcode\InfinitoOnboarding\Support\TourDefinition;
@@ -27,6 +28,7 @@ use Illuminate\Support\Str;
  * @property CarbonImmutable|null $starts_at
  * @property CarbonImmutable|null $ends_at
  * @property array<string, mixed>|null $audience
+ * @property array<string, array<string, string|null>>|null $translations
  * @property string|null $tenant_id
  * @property int $sort
  * @property bool $is_active
@@ -37,6 +39,8 @@ class Tour extends Model
 {
     /** @use HasFactory<TourFactory> */
     use HasFactory;
+
+    use HasTranslatedContent;
 
     protected $guarded = [];
 
@@ -55,6 +59,7 @@ class Tour extends Model
             'starts_at' => 'immutable_datetime',
             'ends_at' => 'immutable_datetime',
             'audience' => 'array',
+            'translations' => 'array',
             'sort' => 'integer',
             'is_active' => 'boolean',
         ];
@@ -63,6 +68,14 @@ class Tour extends Model
     public function getTable(): string
     {
         return config('infinito-onboarding.table_names.tours', 'onboarding_tours');
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    public function translatableAttributes(): array
+    {
+        return ['name', 'description'];
     }
 
     protected static function newFactory(): TourFactory

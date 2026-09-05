@@ -27,6 +27,7 @@ class TourExporter
             'key' => $tour->key,
             'name' => $tour->name,
             'description' => $tour->description,
+            'translations' => $tour->translations,
             'mode' => $tour->mode->value,
             'route_pattern' => $tour->route_pattern,
             'version' => $tour->version,
@@ -43,6 +44,7 @@ class TourExporter
                 'title' => $step->title,
                 'body' => $step->body,
                 'placement' => $step->placement->value,
+                'translations' => $step->translations,
                 'extra' => $step->extra,
             ])->values()->all(),
         ];

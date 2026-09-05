@@ -5,6 +5,7 @@ namespace Arzcode\InfinitoOnboarding\Filament\Resources;
 use Arzcode\InfinitoOnboarding\Enums\TourMode;
 use Arzcode\InfinitoOnboarding\Filament\Resources\TourResource\Pages;
 use Arzcode\InfinitoOnboarding\Filament\Resources\TourResource\RelationManagers\StepsRelationManager;
+use Arzcode\InfinitoOnboarding\Filament\Support\TranslationTabs;
 use Arzcode\InfinitoOnboarding\InfinitoOnboardingPlugin;
 use Arzcode\InfinitoOnboarding\Models\Tour;
 use Arzcode\InfinitoOnboarding\Support\PanelRoutes;
@@ -169,6 +170,15 @@ class TourResource extends Resource
                             ->minValue(0),
                     ]),
 
+                ...TranslationTabs::make([
+                    'name' => fn (string $path, string $locale): TextInput => TextInput::make($path)
+                        ->label(__('infinito-onboarding::onboarding.resource.fields.name'))
+                        ->maxLength(255),
+                    'description' => fn (string $path, string $locale): Textarea => Textarea::make($path)
+                        ->label(__('infinito-onboarding::onboarding.resource.fields.description'))
+                        ->rows(2),
+                ]),
+
                 Section::make(__('infinito-onboarding::onboarding.resource.sections.audience'))
                     ->description(__('infinito-onboarding::onboarding.resource.sections.audience_help'))
                     ->columnSpanFull()
@@ -320,6 +330,10 @@ class TourResource extends Resource
             ->all();
 
         $data['audience'] = $audience === [] ? null : $audience;
+
+        if (array_key_exists('translations', $data)) {
+            $data['translations'] = Tour::cleanTranslations(is_array($data['translations']) ? $data['translations'] : null);
+        }
 
         return $data;
     }

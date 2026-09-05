@@ -37,6 +37,10 @@ Table names come from `config('infinito-onboarding.table_names')`. Defaults:
 
 Models: `Models\Tour`, `Models\TourStep`, `Models\TourCompletion`, `Models\TourEvent`. Enums: `Enums\TourMode`, `Enums\TargetType`, `Enums\Placement`, `Enums\TourEventType`. `audience` and `extra` cast to `array`; dates cast to `immutable_datetime`.
 
+## Multi-language content
+
+`config('infinito-onboarding.locales')` lists authoring locales; the first is the default and lives in the base columns (`name`, `description`, `title`, `body`). Other locales are stored in the `translations` JSON column (`{"es": {"title": "…"}}`) through `Concerns\HasTranslatedContent`. Always read content through `->translated('title')` (current locale → fallback → base). `Filament\Support\TranslationTabs::make()` renders per-locale tabs and returns nothing in single-language apps.
+
 ## Resolver rule (server-side, per page load)
 
 `Support\TourResolver::resolveFor($user, $currentRoute, $tenantId)` returns the first tour (ordered by `sort`) where **all** of the following hold:

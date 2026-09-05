@@ -6,6 +6,7 @@ use Arzcode\InfinitoOnboarding\Enums\Placement;
 use Arzcode\InfinitoOnboarding\Enums\TargetType;
 use Arzcode\InfinitoOnboarding\Enums\TourMode;
 use Arzcode\InfinitoOnboarding\Models\Tour;
+use Arzcode\InfinitoOnboarding\Models\TourStep;
 use DateTimeInterface;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -64,7 +65,7 @@ class TourDefinition
 
         $definition = new static($key);
 
-        foreach (['name', 'description', 'route_pattern', 'version', 'audience', 'tenant_id', 'sort', 'is_active'] as $attribute) {
+        foreach (['name', 'description', 'route_pattern', 'version', 'audience', 'tenant_id', 'sort', 'is_active', 'translations'] as $attribute) {
             if (array_key_exists($attribute, $data)) {
                 $definition->attributes[$attribute] = $data[$attribute];
             }
@@ -88,6 +89,7 @@ class TourDefinition
                 body: $step['body'] ?? null,
                 placement: isset($step['placement']) ? ($step['placement'] instanceof Placement ? $step['placement'] : Placement::from((string) $step['placement'])) : Placement::Auto,
                 extra: $step['extra'] ?? null,
+                translations: is_array($step['translations'] ?? null) ? $step['translations'] : null,
             );
         }
 
@@ -259,6 +261,7 @@ class TourDefinition
 
     /**
      * @param  array<string, mixed>|null  $extra
+     * @param  array<string, array<string, string|null>>|null  $translations
      */
     public function addStep(
         TargetType $targetType,
@@ -267,6 +270,7 @@ class TourDefinition
         ?string $body = null,
         Placement|string $placement = Placement::Auto,
         ?array $extra = null,
+        ?array $translations = null,
     ): static {
         $this->steps[] = [
             'target_type' => $targetType,
@@ -275,6 +279,7 @@ class TourDefinition
             'body' => $body,
             'placement' => $placement instanceof Placement ? $placement : Placement::from($placement),
             'extra' => $extra,
+            'translations' => TourStep::cleanTranslations($translations),
         ];
 
         return $this;
@@ -337,6 +342,37 @@ class TourDefinition
     {
         $step = &$this->lastStep();
         $step['extra'] = [...($step['extra'] ?? []), 'before' => [...($step['extra']['before'] ?? []), ...$actions]];
+
+        return $this;
+    }
+
+    /**
+     * Translate the last step: `->translate('es', ['title' => 'Exportar', 'body' => '…'])`.
+     *
+     * @param  array<string, string|null>  $values
+     */
+    public function translate(string $locale, array $values): static
+    {
+        $step = &$this->lastStep();
+        $step['translations'] = TourStep::cleanTranslations([
+            ...($step['translations'] ?? []),
+            $locale => [...(($step['translations'] ?? [])[$locale] ?? []), ...$values],
+        ]);
+
+        return $this;
+    }
+
+    /**
+     * Translate the tour's name / description.
+     *
+     * @param  array<string, string|null>  $values
+     */
+    public function translateTour(string $locale, array $values): static
+    {
+        $this->attributes['translations'] = Tour::cleanTranslations([
+            ...($this->attributes['translations'] ?? []),
+            $locale => [...(($this->attributes['translations'] ?? [])[$locale] ?? []), ...$values],
+        ]);
 
         return $this;
     }
@@ -425,6 +461,7 @@ class TourDefinition
                     'body' => $step['body'],
                     'placement' => $step['placement'],
                     'extra' => $step['extra'],
+                    'translations' => $step['translations'] ?? null,
                 ]);
             }
 

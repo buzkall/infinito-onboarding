@@ -29,10 +29,10 @@
                 <section class="io-changelog-tour" data-tour-key="{{ $tour->key }}">
                     @if (count($tours) > 1 || filled($tour->description))
                         <header class="io-changelog-tour-header">
-                            <h3 class="io-changelog-tour-name">{{ $tour->name }}</h3>
+                            <h3 class="io-changelog-tour-name">{{ $tour->translated('name') }}</h3>
                             <span class="io-changelog-tour-version">v{{ $tour->version }}</span>
-                            @if (filled($tour->description))
-                                <p class="io-changelog-tour-description">{{ $tour->description }}</p>
+                            @if (filled($tour->translated('description')))
+                                <p class="io-changelog-tour-description">{{ $tour->translated('description') }}</p>
                             @endif
                         </header>
                     @endif
@@ -40,9 +40,9 @@
                     <ul class="io-changelog-list">
                         @foreach ($tour->steps as $step)
                             <li class="io-changelog-entry">
-                                <h4 class="io-changelog-entry-title">{{ $step->title }}</h4>
-                                @if (filled($step->body))
-                                    <div class="io-changelog-entry-body">{!! $step->body !!}</div>
+                                <h4 class="io-changelog-entry-title">{{ $step->translated('title') }}</h4>
+                                @if (filled($step->translated('body')))
+                                    <div class="io-changelog-entry-body">{!! $step->translated('body') !!}</div>
                                 @endif
                             </li>
                         @endforeach

@@ -4,6 +4,7 @@ namespace Arzcode\InfinitoOnboarding\Filament\Resources\TourResource\RelationMan
 
 use Arzcode\InfinitoOnboarding\Enums\Placement;
 use Arzcode\InfinitoOnboarding\Enums\TargetType;
+use Arzcode\InfinitoOnboarding\Filament\Support\TranslationTabs;
 use Arzcode\InfinitoOnboarding\Models\TourStep;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\CreateAction;
@@ -74,6 +75,14 @@ class StepsRelationManager extends RelationManager
                     ->default(Placement::Auto)
                     ->required()
                     ->native(false),
+                ...TranslationTabs::make([
+                    'title' => fn (string $path, string $locale): TextInput => TextInput::make($path)
+                        ->label(__('infinito-onboarding::onboarding.resource.steps.fields.title'))
+                        ->maxLength(255),
+                    'body' => fn (string $path, string $locale): RichEditor => RichEditor::make($path)
+                        ->label(__('infinito-onboarding::onboarding.resource.steps.fields.body'))
+                        ->toolbarButtons(['bold', 'italic', 'link', 'bulletList', 'orderedList', 'underline']),
+                ]),
                 Toggle::make('extra.advance_on_click')
                     ->label(__('infinito-onboarding::onboarding.resource.steps.fields.advance_on_click'))
                     ->helperText(__('infinito-onboarding::onboarding.resource.steps.fields.advance_on_click_help'))
@@ -129,6 +138,19 @@ class StepsRelationManager extends RelationManager
             ]);
     }
 
+    /**
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    protected static function cleanStepData(array $data): array
+    {
+        if (array_key_exists('translations', $data)) {
+            $data['translations'] = TourStep::cleanTranslations(is_array($data['translations']) ? $data['translations'] : null);
+        }
+
+        return $data;
+    }
+
     public function table(Table $table): Table
     {
         return $table
@@ -159,11 +181,11 @@ class StepsRelationManager extends RelationManager
                     ->mutateDataUsing(function (array $data): array {
                         $data['order'] ??= ((int) $this->getRelationship()->max('order')) + 1;
 
-                        return $data;
+                        return static::cleanStepData($data);
                     }),
             ])
             ->recordActions([
-                EditAction::make(),
+                EditAction::make()->mutateDataUsing(fn (array $data): array => static::cleanStepData($data)),
                 DeleteAction::make(),
             ])
             ->toolbarActions([

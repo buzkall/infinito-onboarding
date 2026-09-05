@@ -255,7 +255,7 @@ class TourOverlay extends Component
             'tour' => [
                 'id' => $tour->id,
                 'key' => $tour->key,
-                'name' => $tour->name,
+                'name' => $tour->translated('name'),
                 'mode' => $tour->mode->value,
                 'version' => $tour->version,
             ],

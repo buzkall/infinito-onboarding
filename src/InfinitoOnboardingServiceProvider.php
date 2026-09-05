@@ -103,6 +103,7 @@ class InfinitoOnboardingServiceProvider extends PackageServiceProvider
             'create_onboarding_tour_steps_table',
             'create_onboarding_tour_completions_table',
             'create_onboarding_tour_events_table',
+            'add_translations_to_onboarding_tables',
         ];
     }
 }
