@@ -70,6 +70,45 @@ class TourStep extends Model
     }
 
     /**
+     * Actions run before the step is shown (open a modal, switch a tab…),
+     * stored in `extra.before` as `[{type: click|wait|dispatch, target_type,
+     * target, selector, timeout, event}]`.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    public function getBeforeActions(): array
+    {
+        $actions = $this->extra['before'] ?? [];
+
+        if (! is_array($actions)) {
+            return [];
+        }
+
+        return collect($actions)
+            ->filter(fn (mixed $action): bool => is_array($action))
+            ->map(fn (array $action): array => [
+                'type' => (string) ($action['type'] ?? 'click'),
+                'target_type' => isset($action['target_type']) ? (string) $action['target_type'] : null,
+                'target' => isset($action['target']) ? (string) $action['target'] : null,
+                'selector' => isset($action['selector']) ? (string) $action['selector'] : null,
+                'timeout' => isset($action['timeout']) ? (int) $action['timeout'] : null,
+                'event' => isset($action['event']) ? (string) $action['event'] : null,
+            ])
+            ->filter(fn (array $action): bool => filled($action['target']) || filled($action['selector']) || filled($action['event']) || $action['type'] === 'wait')
+            ->values()
+            ->all();
+    }
+
+    /**
+     * Whether clicking the highlighted element (e.g. a wire:click button)
+     * advances the tour.
+     */
+    public function advancesOnClick(): bool
+    {
+        return (bool) ($this->extra['advance_on_click'] ?? false);
+    }
+
+    /**
      * @return array<string, mixed>
      */
     public function toPayload(): array
@@ -83,6 +122,8 @@ class TourStep extends Model
             'title' => $this->title,
             'body' => $this->body,
             'placement' => $this->placement->value,
+            'before' => $this->getBeforeActions(),
+            'advance_on_click' => $this->advancesOnClick(),
             'extra' => $this->extra ?? [],
         ];
     }

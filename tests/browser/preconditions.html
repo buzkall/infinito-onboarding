@@ -1,0 +1,27 @@
+<!doctype html>
+<html>
+<head>
+  <link rel="stylesheet" href="../../resources/dist/infinito-onboarding.css">
+  <script src="../../resources/dist/infinito-onboarding.js"></script>
+  <script src="../../vendor/livewire/livewire/dist/livewire.js" data-csrf="x" data-update-uri="/livewire/update" data-navigate-once="true"></script>
+</head>
+<body>
+  <button data-tour="open-settings" onclick="setTimeout(() => document.getElementById('modal').hidden = false, 150)">Open settings</button>
+  <button data-tour="advance-me" onclick="window.__clicked = (window.__clicked || 0) + 1">Wire click</button>
+  <div id="modal" hidden><div data-tour="inside-modal">Inside the modal</div></div>
+  <script>
+    window.__events = []
+    window.addEventListener('infinito-onboarding:step', (e) => window.__events.push(['step', e.detail.step.title]))
+    window.addEventListener('infinito-onboarding:completed', () => window.__events.push(['completed']))
+  </script>
+  <div x-data="infinitoOnboardingTour({
+      tour: { key: 'pre' },
+      steps: [
+        { target_type: 'data_tour', target: 'advance-me', title: 'Click me', body: 'Clicking advances', placement: 'auto', advance_on_click: true },
+        { target_type: 'data_tour', target: 'inside-modal', title: 'In the modal', body: 'Opened first', placement: 'auto', before: [{ type: 'click', target_type: 'data_tour', target: 'open-settings' }] },
+        { target_type: 'data_tour', target: 'never-there', title: 'Skipped', body: '', placement: 'auto', before: [{ type: 'click', target_type: 'data_tour', target: 'open-settings' }] },
+        { target_type: 'none', target: null, title: 'End', body: 'Bye', placement: 'auto' }
+      ]
+  })"></div>
+</body>
+</html>

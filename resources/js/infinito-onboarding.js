@@ -65,6 +65,136 @@ export function dispatch(name, detail = {}) {
     window.dispatchEvent(new CustomEvent(`${EVENT_PREFIX}:${name}`, { detail, bubbles: true }))
 }
 
+/*
+|--------------------------------------------------------------------------
+| Livewire request tracking
+|--------------------------------------------------------------------------
+|
+| Preconditions and advance-on-click steps often trigger a Livewire request
+| (open a modal, switch a tab). We count in-flight commits so the runner can
+| wait for the DOM to settle before looking for the next target.
+*/
+let inflightCommits = 0
+let commitHookBound = false
+
+function bindCommitTracking() {
+    if (commitHookBound || !window.Livewire?.hook) return
+
+    commitHookBound = true
+
+    try {
+        window.Livewire.hook('commit', ({ succeed, fail }) => {
+            inflightCommits++
+
+            const done = () => {
+                inflightCommits = Math.max(0, inflightCommits - 1)
+            }
+
+            succeed(done)
+            fail(done)
+        })
+    } catch (_) {
+        commitHookBound = false
+    }
+}
+
+export async function waitForLivewireIdle(timeout = 3000) {
+    bindCommitTracking()
+
+    // Give a click a moment to start its request before checking.
+    await sleep(30)
+
+    const startedAt = Date.now()
+
+    while (inflightCommits > 0 && Date.now() - startedAt < timeout) {
+        await sleep(50)
+    }
+
+    // One more frame so morphs triggered by the response are applied.
+    await new Promise((resolve) => window.requestAnimationFrame(() => resolve()))
+}
+
+/**
+ * Selector for a precondition action: either an explicit selector, or a
+ * (target_type, target) pair like a step.
+ */
+export function actionSelector(action) {
+    if (!action) return null
+
+    if (action.selector) return action.selector
+
+    if (action.target_type || action.target) {
+        return selectorFor({ target_type: action.target_type ?? 'data_tour', target: action.target })
+    }
+
+    return null
+}
+
+const delaysFor = (timeout) => {
+    const delays = []
+    let total = 0
+    let next = 100
+
+    while (total < timeout) {
+        delays.push(next)
+        total += next
+        next = Math.min(next * 2, 800)
+    }
+
+    return delays.length ? delays : [100]
+}
+
+/**
+ * Run a step's `before` actions (open a modal, switch a tab, wait for an
+ * element) sequentially. Never throws; a failed action is logged and skipped.
+ */
+export async function runPreconditions(step) {
+    const actions = Array.isArray(step?.before) ? step.before : []
+
+    for (const action of actions) {
+        const selector = actionSelector(action)
+        const timeout = Number(action.timeout) > 0 ? Number(action.timeout) : 2000
+
+        if (action.type === 'click' || action.type === undefined) {
+            const element = selector ? await waitForTarget(selector) : null
+
+            if (!element) {
+                console.warn(`[${EVENT_PREFIX}] precondition click target not found (selector: ${selector}); continuing.`)
+
+                continue
+            }
+
+            element.click()
+            await waitForLivewireIdle(timeout)
+
+            continue
+        }
+
+        if (action.type === 'wait') {
+            if (!selector) {
+                await sleep(Math.min(timeout, 5000))
+
+                continue
+            }
+
+            const element = await waitForTarget(selector, delaysFor(timeout))
+
+            if (!element) {
+                console.warn(`[${EVENT_PREFIX}] precondition wait target never appeared (selector: ${selector}); continuing.`)
+            }
+
+            continue
+        }
+
+        if (action.type === 'dispatch' && action.event) {
+            window.dispatchEvent(new CustomEvent(action.event, { detail: action.detail ?? {} }))
+            await waitForLivewireIdle(timeout)
+        }
+    }
+}
+
+const hasPreconditions = (step) => Array.isArray(step?.before) && step.before.length > 0
+
 /**
  * Framework-agnostic tour runner around Driver.js. Used by the Alpine
  * component below and by record mode's "Preview" button.
@@ -179,6 +309,15 @@ export function createTourRunner(config = {}) {
                 continue
             }
 
+            if (hasPreconditions(step)) {
+                // The target may only exist after the preconditions ran
+                // (inside a modal, a tab…); it is checked right before the
+                // step is shown instead.
+                resolved.push({ step, selector })
+
+                continue
+            }
+
             const element = await waitForTarget(selector)
 
             if (!element) {
@@ -210,7 +349,61 @@ export function createTourRunner(config = {}) {
             driverStep.element = () => queryTarget(selector) ?? undefined
         }
 
+        if (step.advance_on_click) {
+            // Clicking the highlighted element (e.g. a wire:click button)
+            // advances the tour once Livewire has settled.
+            driverStep.advanceOnClick = true
+            driverStep.disableActiveInteraction = false
+        }
+
         return driverStep
+    }
+
+    /**
+     * Find the next reachable step in a direction, running preconditions on
+     * the way, and tell Driver.js to move there. Steps whose target is still
+     * missing after their preconditions are skipped with a warning.
+     */
+    let navigating = false
+
+    const navigate = async (direction, resolved) => {
+        if (!instance || navigating) return
+
+        navigating = true
+
+        try {
+            const active = instance.getActiveIndex()
+
+            if (active === undefined) return
+
+            let index = active + direction
+
+            while (index >= 0 && index < resolved.length) {
+                const { step, selector } = resolved[index]
+
+                await runPreconditions(step)
+
+                if (!instance) return
+
+                if (!selector || (await waitForTarget(selector))) {
+                    instance.moveTo(index)
+
+                    return
+                }
+
+                console.warn(
+                    `[${EVENT_PREFIX}] target not found for step "${step.title ?? step.id ?? '?'}" (selector: ${selector}); skipping.`,
+                )
+
+                index += direction
+            }
+
+            if (direction > 0) {
+                end('completed')
+            }
+        } finally {
+            navigating = false
+        }
     }
 
     const start = async () => {
@@ -222,6 +415,27 @@ export function createTourRunner(config = {}) {
 
         if (resolved.length === 0) {
             console.warn(`[${EVENT_PREFIX}] tour "${tour?.key ?? '?'}" has no reachable steps; nothing to show.`)
+            running = false
+            finish('dismissed')
+
+            return
+        }
+
+        // Preconditions of the first step run before the overlay appears.
+        let firstIndex = 0
+
+        while (firstIndex < resolved.length) {
+            const { step, selector } = resolved[firstIndex]
+
+            await runPreconditions(step)
+
+            if (!selector || (await waitForTarget(selector))) break
+
+            console.warn(`[${EVENT_PREFIX}] target not found for step "${step.title ?? step.id ?? '?'}" (selector: ${selector}); skipping.`)
+            firstIndex++
+        }
+
+        if (firstIndex >= resolved.length) {
             running = false
             finish('dismissed')
 
@@ -257,6 +471,14 @@ export function createTourRunner(config = {}) {
             // Driver.js skips when the exit happens mid-animation.
             onDoneClick: () => end('completed'),
             onCloseClick: () => end('dismissed'),
+            onNextClick: async (element, step) => {
+                if (step?.advanceOnClick) {
+                    await waitForLivewireIdle()
+                }
+
+                await navigate(1, resolved)
+            },
+            onPrevClick: () => navigate(-1, resolved),
             onDestroyStarted: () => end(instance?.isLastStep() ? 'completed' : 'dismissed'),
             onDestroyed: () => {
                 if (instance) end('dismissed')
@@ -264,7 +486,7 @@ export function createTourRunner(config = {}) {
         })
 
         bind()
-        instance.drive()
+        instance.drive(firstIndex)
     }
 
     return {
@@ -333,6 +555,8 @@ if (window.Alpine) {
 window.InfinitoOnboarding = Object.assign(window.InfinitoOnboarding ?? {}, {
     tour: infinitoOnboardingTour,
     createTourRunner,
+    runPreconditions,
+    waitForLivewireIdle,
     selectorFor,
     queryTarget,
     waitForTarget,

@@ -61,7 +61,7 @@
                                     <span class="io-step-index" x-text="index + 1"></span>
                                     <span class="io-score" :class="scoreClass(step.target_type === 'none' ? 'green' : step.score)"></span>
                                     <div class="io-step-main">
-                                        <div class="io-step-title" x-text="step.title"></div>
+                                        <div class="io-step-title" x-text="step.title + ((step.before ?? []).length ? ' ⤴' : '')"></div>
                                         <div class="io-step-target" x-text="step.target_type === 'none' ? labels.no_target : (step.selector ?? step.target)"></div>
                                     </div>
                                     <div class="io-step-actions">
@@ -95,6 +95,26 @@
                             <label for="io-step-body" x-text="labels.step_body"></label>
                             <textarea id="io-step-body" x-model="draft.body"></textarea>
                         </div>
+
+                        <div>
+                            <label x-text="labels.before"></label>
+                            <ul class="io-recorder-before" x-show="(draft.before ?? []).length">
+                                <template x-for="(action, index) in draft.before" :key="index">
+                                    <li class="io-recorder-target">
+                                        <span class="io-score" :class="scoreClass(action.score ?? 'amber')" style="margin-top:0"></span>
+                                        <code x-text="action.selector ?? action.target"></code>
+                                        <button type="button" class="io-btn io-btn-sm" @click="removeBefore(index)" x-text="labels.remove"></button>
+                                    </li>
+                                </template>
+                            </ul>
+                            <button type="button" class="io-btn io-btn-sm" @click="pickBefore()" x-text="labels.before_pick"></button>
+                            <p class="io-recorder-status" x-text="labels.before_help"></p>
+                        </div>
+
+                        <label class="io-recorder-check">
+                            <input type="checkbox" x-model="draft.advance_on_click">
+                            <span x-text="labels.advance_on_click"></span>
+                        </label>
 
                         <div>
                             <label for="io-step-placement" x-text="labels.step_placement"></label>

@@ -282,6 +282,103 @@ class TourDefinition
 
     /*
     |--------------------------------------------------------------------------
+    | Step options (apply to the last added step)
+    |--------------------------------------------------------------------------
+    */
+
+    /**
+     * Click an element before showing the last step, e.g. to open the modal
+     * or tab that contains its target. Accepts a `->tourTarget()` key or a CSS
+     * selector (anything containing a CSS token such as `#`, `.`, `[` or a space).
+     */
+    public function clickFirst(string $target, int $timeout = 2000): static
+    {
+        return $this->before([[
+            'type' => 'click',
+            ...$this->targetPair($target),
+            'timeout' => $timeout,
+        ]]);
+    }
+
+    /**
+     * Wait for an element to appear before showing the last step.
+     */
+    public function waitFor(string $target, int $timeout = 2000): static
+    {
+        return $this->before([[
+            'type' => 'wait',
+            ...$this->targetPair($target),
+            'timeout' => $timeout,
+        ]]);
+    }
+
+    /**
+     * Dispatch a browser event before showing the last step, e.g.
+     * `->dispatchFirst('open-modal', ['id' => 'settings'])`.
+     *
+     * @param  array<string, mixed>  $detail
+     */
+    public function dispatchFirst(string $event, array $detail = [], int $timeout = 2000): static
+    {
+        return $this->before([[
+            'type' => 'dispatch',
+            'event' => $event,
+            'detail' => $detail,
+            'timeout' => $timeout,
+        ]]);
+    }
+
+    /**
+     * Append raw precondition actions to the last step.
+     *
+     * @param  array<int, array<string, mixed>>  $actions
+     */
+    public function before(array $actions): static
+    {
+        $step = &$this->lastStep();
+        $step['extra'] = [...($step['extra'] ?? []), 'before' => [...($step['extra']['before'] ?? []), ...$actions]];
+
+        return $this;
+    }
+
+    /**
+     * Clicking the highlighted element (a wire:click button, a link…)
+     * advances the tour instead of being blocked by the overlay.
+     */
+    public function advanceOnClick(bool $condition = true): static
+    {
+        $step = &$this->lastStep();
+        $step['extra'] = [...($step['extra'] ?? []), 'advance_on_click' => $condition];
+
+        return $this;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    protected function &lastStep(): array
+    {
+        if ($this->steps === []) {
+            throw new \LogicException('Add a step before configuring step options.');
+        }
+
+        return $this->steps[array_key_last($this->steps)];
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    protected function targetPair(string $target): array
+    {
+        $looksLikeSelector = (bool) preg_match('/[#.\[\]>:\s]/', $target);
+
+        return $looksLikeSelector
+            ? ['target_type' => TargetType::Css->value, 'target' => $target]
+            : ['target_type' => TargetType::DataTour->value, 'target' => $target];
+    }
+
+    /*
+    |--------------------------------------------------------------------------
     | Persistence
     |--------------------------------------------------------------------------
     */

@@ -4,15 +4,19 @@ namespace Arzcode\InfinitoOnboarding\Filament\Resources\TourResource\RelationMan
 
 use Arzcode\InfinitoOnboarding\Enums\Placement;
 use Arzcode\InfinitoOnboarding\Enums\TargetType;
+use Arzcode\InfinitoOnboarding\Models\TourStep;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\CreateAction;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
+use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\RichEditor;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
+use Filament\Forms\Components\Toggle;
 use Filament\Resources\RelationManagers\RelationManager;
+use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Schema;
 use Filament\Tables\Columns\TextColumn;
@@ -70,6 +74,58 @@ class StepsRelationManager extends RelationManager
                     ->default(Placement::Auto)
                     ->required()
                     ->native(false),
+                Toggle::make('extra.advance_on_click')
+                    ->label(__('infinito-onboarding::onboarding.resource.steps.fields.advance_on_click'))
+                    ->helperText(__('infinito-onboarding::onboarding.resource.steps.fields.advance_on_click_help'))
+                    ->default(false),
+                Section::make(__('infinito-onboarding::onboarding.resource.steps.fields.before'))
+                    ->description(__('infinito-onboarding::onboarding.resource.steps.fields.before_help'))
+                    ->collapsible()
+                    ->collapsed(fn (?TourStep $record): bool => $record === null || $record->getBeforeActions() === [])
+                    ->columnSpanFull()
+                    ->schema([
+                        Repeater::make('extra.before')
+                            ->hiddenLabel()
+                            ->columns(3)
+                            ->defaultItems(0)
+                            ->addActionLabel(__('infinito-onboarding::onboarding.resource.steps.fields.before_add'))
+                            ->schema([
+                                Select::make('type')
+                                    ->label(__('infinito-onboarding::onboarding.resource.steps.fields.before_type'))
+                                    ->options([
+                                        'click' => __('infinito-onboarding::onboarding.resource.steps.before_types.click'),
+                                        'wait' => __('infinito-onboarding::onboarding.resource.steps.before_types.wait'),
+                                    ])
+                                    ->default('click')
+                                    ->required()
+                                    ->native(false),
+                                TextInput::make('target')
+                                    ->label(__('infinito-onboarding::onboarding.resource.steps.fields.before_target'))
+                                    ->helperText(__('infinito-onboarding::onboarding.resource.steps.fields.before_target_help'))
+                                    ->required()
+                                    ->maxLength(255),
+                                TextInput::make('timeout')
+                                    ->label(__('infinito-onboarding::onboarding.resource.steps.fields.before_timeout'))
+                                    ->numeric()
+                                    ->default(2000)
+                                    ->minValue(0)
+                                    ->suffix('ms'),
+                            ])
+                            ->mutateDehydratedStateUsing(fn (?array $state): array => collect($state ?? [])
+                                ->map(function (array $action): array {
+                                    $target = (string) ($action['target'] ?? '');
+                                    $isSelector = (bool) preg_match('/[#.\[\]>:\s]/', $target);
+
+                                    return [
+                                        'type' => $action['type'] ?? 'click',
+                                        'target_type' => $isSelector ? TargetType::Css->value : TargetType::DataTour->value,
+                                        'target' => $target,
+                                        'timeout' => (int) ($action['timeout'] ?? 2000),
+                                    ];
+                                })
+                                ->values()
+                                ->all()),
+                    ]),
             ]);
     }
 

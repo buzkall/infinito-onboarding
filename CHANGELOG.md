@@ -4,6 +4,15 @@ All notable changes to `arzcode/infinito-onboarding` are documented here. The fo
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-09-05
+
+### Added
+
+- Step preconditions: `before` actions (`click`, `wait`, `dispatch`) run before a step is shown so targets inside modals and tabs work. Builder helpers `clickFirst()`, `waitFor()`, `dispatchFirst()`, `before()`; an *Open this first* repeater in the step form; *Pick element to click first* in record mode.
+- `advance_on_click` (builder `advanceOnClick()`): clicking the highlighted element (e.g. a `wire:click` button) advances the tour once Livewire's request has settled.
+- The runner now controls navigation itself (next / previous / arrow keys / overlay click), running preconditions on the way and skipping unreachable steps in both directions.
+- `window.InfinitoOnboarding.runPreconditions()` and `waitForLivewireIdle()` helpers.
+
 ## [0.1.0] - 2026-09-04
 
 First release.

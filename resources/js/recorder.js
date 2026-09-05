@@ -215,6 +215,8 @@ const toParagraphs = (text) => {
 
 const emptyDraft = () => ({
     id: null,
+    before: [],
+    advance_on_click: false,
     title: '',
     body: '',
     placement: 'auto',
@@ -244,6 +246,7 @@ export function infinitoOnboardingRecorder(config = {}) {
         editorOpen: false,
         editingIndex: null,
         draft: emptyDraft(),
+        pickingFor: null,
         hover: { visible: false, top: 0, left: 0, width: 0, height: 0, label: '', score: 'red' },
         dragIndex: null,
         status: null,
@@ -309,6 +312,12 @@ export function infinitoOnboardingRecorder(config = {}) {
 
         stopPicking() {
             if (!this.picking) return
+
+            if (this.pickingFor === 'before') {
+                // Cancelled: go back to the editor.
+                this.pickingFor = null
+                this.editorOpen = true
+            }
 
             this.picking = false
             this.hover.visible = false
@@ -377,20 +386,48 @@ export function infinitoOnboardingRecorder(config = {}) {
 
             if (!captured) return
 
+            const pickingFor = this.pickingFor
+            this.pickingFor = null
             this.stopPicking()
+
+            if (pickingFor === 'before') {
+                // "Open this first": record a click precondition on the draft
+                // instead of replacing it.
+                this.pickingFor = null
+                this.draft.before = [
+                    ...(this.draft.before ?? []),
+                    { type: 'click', target_type: captured.target_type, target: captured.target, selector: captured.selector, score: captured.score },
+                ]
+                this.editorOpen = true
+                this.panelOpen = true
+
+                return
+            }
+
+            const keep = this.editingIndex !== null ? { before: this.draft.before ?? [], advance_on_click: this.draft.advance_on_click ?? false } : {}
 
             this.draft = {
                 ...emptyDraft(),
                 ...captured,
-                title: '',
-                body: '',
-                placement: 'auto',
+                title: this.editingIndex !== null ? this.draft.title : '',
+                body: this.editingIndex !== null ? this.draft.body : '',
+                placement: this.editingIndex !== null ? this.draft.placement : 'auto',
+                ...keep,
             }
-            this.editingIndex = null
             this.editorOpen = true
             this.panelOpen = true
 
             this.$nextTick(() => this.$refs.title?.focus())
+        },
+
+        pickBefore() {
+            this.pickingFor = 'before'
+            this.editorOpen = false
+            this.startPicking()
+        },
+
+        removeBefore(index) {
+            this.draft.before = (this.draft.before ?? []).filter((_, i) => i !== index)
         },
 
         addCentredStep() {
@@ -425,6 +462,8 @@ export function infinitoOnboardingRecorder(config = {}) {
                 score: this.draft.score,
                 strategy: this.draft.strategy,
                 hint: this.draft.hint,
+                before: (this.draft.before ?? []).map((action) => ({ ...action })),
+                advance_on_click: Boolean(this.draft.advance_on_click),
             }
 
             if (this.editingIndex === null) {
@@ -442,7 +481,7 @@ export function infinitoOnboardingRecorder(config = {}) {
 
             if (!step) return
 
-            this.draft = { ...emptyDraft(), ...step, body: step.body ?? '' }
+            this.draft = { ...emptyDraft(), ...step, body: step.body ?? '', before: (step.before ?? []).map((action) => ({ ...action })), advance_on_click: Boolean(step.advance_on_click) }
             this.editingIndex = index
             this.editorOpen = true
             this.$nextTick(() => this.$refs.title?.focus())
@@ -450,8 +489,8 @@ export function infinitoOnboardingRecorder(config = {}) {
 
         retarget(index) {
             this.editStep(index)
-            this.startPicking()
             this.editorOpen = false
+            this.startPicking()
         },
 
         removeStep(index) {
@@ -536,6 +575,8 @@ export function infinitoOnboardingRecorder(config = {}) {
                 extra: {
                     strategy: step.strategy ?? null,
                     score: step.score ?? null,
+                    before: (step.before ?? []).map(({ type, target_type, target, selector, timeout }) => ({ type, target_type, target, selector, timeout })),
+                    advance_on_click: Boolean(step.advance_on_click),
                 },
             }))
 

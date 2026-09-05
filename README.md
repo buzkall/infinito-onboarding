@@ -158,6 +158,24 @@ php artisan onboarding:import --fresh      # also deletes tours missing from the
 
 The directory comes from `config('infinito-onboarding.export_path')`; both commands accept `--path=`. The JSON format has no ids, so a tour recorded on staging can be committed and imported in production.
 
+## Steps inside modals and tabs (preconditions)
+
+A step can run actions **before** it is shown, so targets that only exist once a modal or tab is open still work:
+
+```php
+Tour::define('settings')
+    ->step('open-settings', 'Settings live here')->advanceOnClick()      // clicking the button moves on
+    ->step('settings-modal-title', 'Your new settings')
+        ->clickFirst('open-settings')                                    // opens the modal first
+        ->waitFor('#settings-modal', 5000)                               // then waits for it (optional)
+    ->save();
+```
+
+- `clickFirst()`, `waitFor()` and `dispatchFirst('event', [...])` apply to the last added step; pass a `->tourTarget()` key or a CSS selector.
+- `advanceOnClick()` lets the user click the highlighted element (a `wire:click` button, a link) and moves to the next step once Livewire has finished its request.
+- In the resource, the step form has an **Open this first** repeater and an **Advance when the element is clicked** toggle. In record mode, the editor offers **Pick element to click first**.
+- Targets that are still missing after their preconditions are skipped with a console warning, in both directions.
+
 ## Changelog mode
 
 Set `mode = changelog` (resource) or call `->changelog()` on the builder. Instead of Driver.js, the tour renders as a single modal listing its steps as release-note entries (title + body). It uses the same resolver and seen-state, so it also shows once per user per version.

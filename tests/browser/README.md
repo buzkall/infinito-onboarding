@@ -27,3 +27,12 @@ dismisses it with Escape.
 ```bash
 node tests/browser/recorder.smoke.js
 ```
+
+`preconditions.smoke.js` loads `preconditions.html`: step 1 advances when
+its highlighted button is clicked (`advance_on_click`), step 2 lives inside a
+hidden "modal" that a `before` click action opens first, step 3 can never be
+found and must be skipped in both directions, step 4 completes the tour.
+
+```bash
+node tests/browser/preconditions.smoke.js
+```
