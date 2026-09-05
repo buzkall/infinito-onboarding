@@ -207,6 +207,16 @@ class TourDefinition
     }
 
     /**
+     * Named segments (see Support\Segments); the user must belong to any of them.
+     */
+    public function segments(string ...$segments): static
+    {
+        $this->attributes['audience'] = [...($this->attributes['audience'] ?? []), 'segments' => array_values($segments)];
+
+        return $this;
+    }
+
+    /**
      * @param  array<string, mixed>|null  $audience
      */
     public function audience(?array $audience): static

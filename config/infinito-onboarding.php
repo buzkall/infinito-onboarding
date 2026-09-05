@@ -51,6 +51,27 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Audience segments
+    |--------------------------------------------------------------------------
+    |
+    | Named, reusable audiences that tours reference through
+    | `audience.segments`. Each is either criteria (roles / permissions /
+    | users) or a callable receiving the user. Closures can also be registered
+    | from code with InfinitoOnboardingPlugin::make()->segment('beta', fn ($user) => …).
+    |
+    */
+
+    'segments' => [
+        // 'admins' => ['roles' => ['admin']],
+        // 'beta' => fn (\Illuminate\Contracts\Auth\Authenticatable $user) => $user->is_beta,
+    ],
+
+    'segment_labels' => [
+        // 'beta' => 'Beta testers',
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Locales
     |--------------------------------------------------------------------------
     |

@@ -30,6 +30,7 @@ const state = (page) => page.evaluate(() => ({
   await page.waitForSelector('.io-hint-got-it')
   await page.click('.io-hint-got-it')
   await page.waitForFunction(() => document.querySelectorAll('.io-beacon').length === 0)
+  await page.waitForFunction(() => window.__events.some((e) => e[0] === 'view') && window.__events.some((e) => e[0] === 'target_missing'), null, { timeout: 8000 })
   console.log('5', JSON.stringify(await state(page)))
   console.log('warnings', JSON.stringify(warnings))
   await browser.close()

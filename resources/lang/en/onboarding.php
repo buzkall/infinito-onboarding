@@ -49,6 +49,8 @@ return [
             'sort' => 'Sort',
             'audience_roles' => 'Roles',
             'audience_permissions' => 'Permissions',
+            'audience_segments' => 'Segments',
+            'audience_segments_help' => 'Reusable audiences defined in the config or the plugin; the user must belong to at least one.',
             'tenant_id' => 'Tenant',
             'tenant_id_help' => 'Leave empty to show in every tenant.',
             'steps_count' => 'Steps',

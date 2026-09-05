@@ -9,6 +9,7 @@ use Arzcode\InfinitoOnboarding\Filament\Support\TranslationTabs;
 use Arzcode\InfinitoOnboarding\InfinitoOnboardingPlugin;
 use Arzcode\InfinitoOnboarding\Models\Tour;
 use Arzcode\InfinitoOnboarding\Support\PanelRoutes;
+use Arzcode\InfinitoOnboarding\Support\Segments;
 use BackedEnum;
 use Filament\Actions\Action;
 use Filament\Actions\BulkActionGroup;
@@ -191,6 +192,12 @@ class TourResource extends Resource
                         TagsInput::make('audience.permissions')
                             ->label(__('infinito-onboarding::onboarding.resource.fields.audience_permissions'))
                             ->placeholder('export orders'),
+                        Select::make('audience.segments')
+                            ->label(__('infinito-onboarding::onboarding.resource.fields.audience_segments'))
+                            ->helperText(__('infinito-onboarding::onboarding.resource.fields.audience_segments_help'))
+                            ->multiple()
+                            ->options(fn (): array => app(Segments::class)->options())
+                            ->visible(fn (): bool => app(Segments::class)->names() !== []),
                         TextInput::make('tenant_id')
                             ->label(__('infinito-onboarding::onboarding.resource.fields.tenant_id'))
                             ->helperText(__('infinito-onboarding::onboarding.resource.fields.tenant_id_help'))

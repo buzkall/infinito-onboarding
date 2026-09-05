@@ -9,6 +9,7 @@ use Arzcode\InfinitoOnboarding\Livewire\ChangelogTrigger;
 use Arzcode\InfinitoOnboarding\Livewire\TourOverlay;
 use Arzcode\InfinitoOnboarding\Livewire\TourRecorder;
 use Arzcode\InfinitoOnboarding\Macros\TourTargetMacro;
+use Arzcode\InfinitoOnboarding\Support\Segments;
 use Filament\Support\Assets\Asset;
 use Filament\Support\Assets\Css;
 use Filament\Support\Assets\Js;
@@ -39,7 +40,7 @@ class InfinitoOnboardingServiceProvider extends PackageServiceProvider
 
     public function packageRegistered(): void
     {
-        //
+        $this->app->singleton(Segments::class);
     }
 
     public function packageBooted(): void

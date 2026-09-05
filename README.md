@@ -249,6 +249,24 @@ The `audience` JSON column may contain:
 
 Each present criterion must pass (any of its values). Roles use `hasAnyRole()` / `hasRole()` when your user model provides them (spatie/laravel-permission) and fall back to a `roles` attribute or relation; permissions go through Laravel's `Gate`, so plain policies work and nothing breaks when no permission package is installed.
 
+#### Segments
+
+Define reusable audiences once and reference them from any tour (`"segments": ["beta"]`, `->segments('beta')`, or the *Segments* select in the resource). A segment is criteria or a closure:
+
+```php
+// config/infinito-onboarding.php
+'segments' => [
+    'admins' => ['roles' => ['admin']],
+],
+
+// or in the panel provider
+InfinitoOnboardingPlugin::make()
+    ->segment('beta', fn (User $user): bool => $user->is_beta)
+    ->segment('enterprise', ['permissions' => ['manage billing']]),
+```
+
+The user must belong to at least one of the listed segments; unknown segment names never match.
+
 ### Multi-tenancy
 
 Completions are stored per tenant (`Filament::getTenant()`), so a user sees a tour once per tenant. A tour with a `tenant_id` only shows in that tenant; tours without one show everywhere. User ids are stored as strings, so UUID and integer keys both work.
@@ -297,12 +315,28 @@ npm run build          # rebuild resources/dist (committed; consumers do not nee
 npm run test:browser   # optional Playwright smoke tests of the bundle (see tests/browser)
 ```
 
+## Stability guarantees
+
+From `v1.0.0` the package follows [semantic versioning](https://semver.org/). The **public API** below only changes in a major release; anything else (internal classes, Blade views, CSS class names other than the `.io-*` hooks, the JavaScript internals) may change in a minor one.
+
+| Surface | Stable |
+|---|---|
+| Plugin options | `enabled()`, `authorize()`, `resource()`, `navigationGroup()`, `navigationSort()`, `topbarTrigger()`, `segment()` / `segments()` |
+| Targeting | `->tourTarget('key')` and the `data-tour` attribute it renders |
+| Data | The published migrations and the models `Tour`, `TourStep`, `TourCompletion`, `TourEvent` with their documented columns and enums |
+| Resolver rule | The seven conditions listed above and the audience JSON keys `roles`, `permissions`, `users`, `segments` |
+| Code-first | `Tour::define()` and every `TourDefinition` method documented in this README |
+| Interchange | The JSON format (`format: 1`) written by `onboarding:export` and read by `onboarding:import` |
+| Commands | `onboarding:export`, `onboarding:import`, `onboarding:prune-events` and their documented options |
+| Query flags | `?onboarding-preview`, `?onboarding-record` (names configurable) |
+| Browser events | `infinito-onboarding:step`, `completed`, `dismissed`, `hint-dismissed` and their `detail` keys |
+| Config keys | Everything in `config/infinito-onboarding.php` |
+
+Supported Filament, Livewire, Laravel and PHP versions are listed in the compatibility table; a new major of any of them may require a new major of this package. Deprecations are announced one minor release ahead in the changelog.
+
 ## Roadmap
 
-- **v0.2**: step preconditions (open a modal/tab before a step), `wire:click` interception.
-- **v0.3**: analytics (views, completions, per-step drop-off, target-not-found reports).
-- **v0.4**: multi-language step content.
-- **v1.0**: hint/beacon mode, audience segments, stability guarantees.
+Everything from the original roadmap has shipped in 1.0. Ideas for later: per-step conditions (show a step only when an element is visible), scheduling by user cohort (signup date), and a Livewire Volt-friendly component for non-Filament Livewire apps. Open a discussion if you need one of them.
 
 ## Credits
 

@@ -123,6 +123,7 @@ class TourResolver
      *  - `permissions`: any of these permissions / abilities, checked through
      *                   the Gate so any permission package (or plain policies) work
      *  - `users`:       any of these user identifiers
+     *  - `segments`:    any of these named segments (see Support\Segments)
      *
      * Every present criterion must be satisfied. An empty audience means everyone.
      */
@@ -130,9 +131,40 @@ class TourResolver
     {
         $audience = $tour->audience ?? [];
 
-        $roles = $this->normaliseList(Arr::get($audience, 'roles'));
-        $permissions = $this->normaliseList(Arr::get($audience, 'permissions'));
-        $users = $this->normaliseList(Arr::get($audience, 'users'));
+        if (! $this->passesCriteria($audience, $user)) {
+            return false;
+        }
+
+        $segments = $this->normaliseList(Arr::get($audience, 'segments'));
+
+        if ($segments === []) {
+            return true;
+        }
+
+        /** @var Segments $registry */
+        $registry = app(Segments::class);
+
+        foreach ($segments as $segment) {
+            if ($registry->matches($segment, $user)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Evaluate plain criteria (`roles`, `permissions`, `users`): every present
+     * criterion must be satisfied, each by any of its values. Also used for
+     * array-defined segments.
+     *
+     * @param  array<string, mixed>  $criteria
+     */
+    public function passesCriteria(array $criteria, Authenticatable $user): bool
+    {
+        $roles = $this->normaliseList(Arr::get($criteria, 'roles'));
+        $permissions = $this->normaliseList(Arr::get($criteria, 'permissions'));
+        $users = $this->normaliseList(Arr::get($criteria, 'users'));
 
         if ($roles !== [] && ! $this->userHasAnyRole($user, $roles)) {
             return false;

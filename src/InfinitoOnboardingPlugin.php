@@ -6,6 +6,7 @@ use Arzcode\InfinitoOnboarding\Filament\Resources\TourResource;
 use Arzcode\InfinitoOnboarding\Livewire\ChangelogTrigger;
 use Arzcode\InfinitoOnboarding\Livewire\TourOverlay;
 use Arzcode\InfinitoOnboarding\Livewire\TourRecorder;
+use Arzcode\InfinitoOnboarding\Support\Segments;
 use Closure;
 use Filament\Contracts\Plugin;
 use Filament\Facades\Filament;
@@ -56,11 +57,47 @@ class InfinitoOnboardingPlugin implements Plugin
         return 'infinito-onboarding';
     }
 
+    /** @var array<string, array<string, mixed>|Closure> */
+    protected array $segments = [];
+
     public function register(Panel $panel): void
     {
         if ($this->hasResource()) {
             $panel->resources([$this->resourceClass]);
         }
+
+        /** @var Segments $registry */
+        $registry = app(Segments::class);
+
+        foreach ($this->segments as $name => $definition) {
+            $registry->register($name, $definition);
+        }
+    }
+
+    /**
+     * Define a reusable audience segment tours can target through
+     * `audience.segments`: either criteria (`['roles' => [...]]`) or a closure
+     * receiving the user.
+     *
+     * @param  array<string, mixed>|Closure  $definition
+     */
+    public function segment(string $name, array|Closure $definition): static
+    {
+        $this->segments[$name] = $definition;
+
+        return $this;
+    }
+
+    /**
+     * @param  array<string, array<string, mixed>|Closure>  $segments
+     */
+    public function segments(array $segments): static
+    {
+        foreach ($segments as $name => $definition) {
+            $this->segment((string) $name, $definition);
+        }
+
+        return $this;
     }
 
     public function boot(Panel $panel): void
