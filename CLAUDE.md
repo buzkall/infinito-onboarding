@@ -71,7 +71,7 @@ A selector that matches more than one element is always red.
 - Hint mode (`TourMode::Hint`): beacons are `<button class="io-beacon">` elements appended to `body` and positioned from the target's bounding rect; per-hint dismissals live in `TourCompletion.meta.dismissed_steps`, and a completion row only counts as *seen* once `completed_at` or `dismissed_at` is set.
 - Browser events emitted: `infinito-onboarding:step`, `infinito-onboarding:completed`, `infinito-onboarding:dismissed`.
 - Livewire morph safety: listen for `livewire:navigated` and Livewire morph hooks (`Livewire.hook('morph.updated', ...)`) and call Driver.js `refresh()`. Missing targets are retried with backoff (5 attempts, 100 ms → 800 ms) and then skipped with a `console.warn` that includes the selector.
-- Styling uses Filament's CSS custom properties (`--primary-*`, `--gray-*`) so light/dark themes just work.
+- Styling uses Filament's CSS custom properties (`--primary-*`, `--gray-*`, full colour values in Filament 4+, so use `var(--primary-600, #hex)` and never `rgb(var(...))`) so light/dark themes just work.
 - `npm run build` must be run and the dist committed whenever `resources/js` or `resources/css` change.
 
 ## Quality gates

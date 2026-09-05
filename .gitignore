@@ -10,3 +10,5 @@
 composer.lock
 phpunit.xml
 phpstan.neon.dist.local
+/workbench/database/database.sqlite
+/docs/screenshots/*.tmp.png

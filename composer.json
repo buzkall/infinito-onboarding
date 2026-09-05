@@ -46,14 +46,22 @@
     },
     "autoload-dev": {
         "psr-4": {
-            "Arzcode\\InfinitoOnboarding\\Tests\\": "tests/"
+            "Arzcode\\InfinitoOnboarding\\Tests\\": "tests/",
+            "Workbench\\App\\": "workbench/app/",
+            "Workbench\\Database\\Seeders\\": "workbench/database/seeders/"
         }
     },
     "scripts": {
         "analyse": "vendor/bin/phpstan analyse",
         "test": "vendor/bin/pest",
         "test-coverage": "vendor/bin/pest --coverage",
-        "format": "vendor/bin/pint"
+        "format": "vendor/bin/pint",
+        "workbench:reset": [
+            "@php vendor/bin/testbench migrate:fresh",
+            "@php vendor/bin/testbench db:seed --class=\\\"Workbench\\\\Database\\\\Seeders\\\\DatabaseSeeder\\\"",
+            "@php vendor/bin/testbench filament:assets"
+        ],
+        "workbench:serve": "@php vendor/bin/testbench serve"
     },
     "config": {
         "sort-packages": true,

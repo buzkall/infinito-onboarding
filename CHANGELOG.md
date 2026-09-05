@@ -4,6 +4,17 @@ All notable changes to `arzcode/infinito-onboarding` are documented here. The fo
 
 ## [Unreleased]
 
+### Fixed
+
+- Popover, beacon and record-mode colours now read Filament 4+/5 colour variables correctly (`var(--primary-600)` holds a full `oklch()` colour, not an RGB triplet), so the Next / Got it buttons and the picker outline are visible.
+- Record mode shows the "Open this first" and "Advance when the element is clicked" controls (their labels were missing).
+- `TourDefinition::save()` updates existing steps in place by position instead of recreating them, so step ids and per-step analytics survive re-running a code-first definition.
+- The changelog modal no longer repeats a single tour's name under the modal heading.
+
+### Added
+
+- README screenshots and a Testbench workbench (`composer workbench:reset`, `composer workbench:serve`, `node tests/browser/screenshots.js`) to regenerate them.
+
 ## [1.0.0] - 2026-09-05
 
 First stable release. See *Stability guarantees* in the README for what is now covered by semantic versioning.

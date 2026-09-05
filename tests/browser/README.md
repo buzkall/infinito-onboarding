@@ -46,3 +46,15 @@ empties the page.
 ```bash
 node tests/browser/hints.smoke.js
 ```
+
+## Regenerating the README screenshots
+
+The repository ships a small Testbench workbench (`workbench/`, `testbench.yaml`)
+with a demo "Orders" page whose components carry `->tourTarget()` keys and a
+seeder that creates a guided tour, a hint tour, a changelog and analytics events.
+
+```bash
+composer workbench:reset          # migrate, seed, publish Filament assets
+composer workbench:serve          # http://127.0.0.1:8000/admin (alicia@example.com / password)
+node tests/browser/screenshots.js # writes docs/screenshots/*.png
+```

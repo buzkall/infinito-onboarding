@@ -27,10 +27,12 @@
         <div class="io-changelog-entries">
             @foreach ($tours as $tour)
                 <section class="io-changelog-tour" data-tour-key="{{ $tour->key }}">
-                    @if (count($tours) > 1 || filled($tour->description))
+                    @if (count($tours) > 1 || filled($tour->translated('description')))
                         <header class="io-changelog-tour-header">
-                            <h3 class="io-changelog-tour-name">{{ $tour->translated('name') }}</h3>
-                            <span class="io-changelog-tour-version">v{{ $tour->version }}</span>
+                            @if (count($tours) > 1)
+                                <h3 class="io-changelog-tour-name">{{ $tour->translated('name') }}</h3>
+                                <span class="io-changelog-tour-version">v{{ $tour->version }}</span>
+                            @endif
                             @if (filled($tour->translated('description')))
                                 <p class="io-changelog-tour-description">{{ $tour->translated('description') }}</p>
                             @endif

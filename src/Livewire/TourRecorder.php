@@ -199,6 +199,10 @@ class TourRecorder extends Component
             'edit' => __('infinito-onboarding::onboarding.recorder.edit'),
             'remove' => __('infinito-onboarding::onboarding.recorder.remove'),
             'unsaved' => __('infinito-onboarding::onboarding.recorder.unsaved'),
+            'before' => __('infinito-onboarding::onboarding.recorder.before'),
+            'before_pick' => __('infinito-onboarding::onboarding.recorder.before_pick'),
+            'before_help' => __('infinito-onboarding::onboarding.recorder.before_help'),
+            'advance_on_click' => __('infinito-onboarding::onboarding.recorder.advance_on_click'),
             'placements' => collect(Placement::cases())->mapWithKeys(fn (Placement $placement): array => [$placement->value => $placement->getLabel()])->all(),
             'tour' => TourOverlay::labels(),
         ];

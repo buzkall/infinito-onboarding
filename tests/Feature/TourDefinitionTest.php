@@ -63,6 +63,23 @@ it('updates the tour and replaces the steps when the definition changes, keeping
         ->and(TourCompletion::count())->toBe(1);
 });
 
+it('keeps existing step ids by position when re-saved, so analytics survive deploys', function (): void {
+    $tour = Tour::define('welcome')->step('a', 'A')->step('b', 'B')->step('c', 'C')->save();
+    [$a, $b, $c] = $tour->steps->pluck('id')->all();
+
+    $updated = Tour::define('welcome')->step('a', 'A2')->step('b2', 'B2')->save();
+
+    expect($updated->steps->pluck('id')->all())->toBe([$a, $b])
+        ->and($updated->steps->pluck('title')->all())->toBe(['A2', 'B2'])
+        ->and($updated->steps->pluck('target')->all())->toBe(['a', 'b2'])
+        ->and(TourStep::query()->whereKey($c)->exists())->toBeFalse();
+
+    $grown = Tour::define('welcome')->step('a', 'A')->step('b', 'B')->step('d', 'D')->save();
+
+    expect($grown->steps->pluck('id')->slice(0, 2)->values()->all())->toBe([$a, $b])
+        ->and($grown->steps->count())->toBe(3);
+});
+
 it('supports changelog mode, windows, tenants, users and permissions', function (): void {
     $tour = Tour::define('release-notes')
         ->changelog()

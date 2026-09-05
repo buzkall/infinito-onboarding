@@ -459,8 +459,10 @@ class TourDefinition
     }
 
     /**
-     * Upsert the tour by key and replace its steps. Completions are kept, so
-     * bump version() when users should see the tour again.
+     * Upsert the tour by key and sync its steps. Existing steps are updated
+     * in place by position (so their ids, and therefore analytics, survive a
+     * re-run), surplus steps are deleted, missing ones created. Completions
+     * are kept, so bump version() when users should see the tour again.
      */
     public function save(): Tour
     {
@@ -468,10 +470,11 @@ class TourDefinition
             /** @var Tour $tour */
             $tour = Tour::query()->updateOrCreate(['key' => $this->key], $this->attributes);
 
-            $tour->steps()->delete();
+            $existing = $tour->steps()->orderBy('order')->orderBy('id')->get()->values();
+            $keptIds = [];
 
             foreach ($this->steps as $index => $step) {
-                $tour->steps()->create([
+                $attributes = [
                     'order' => $index + 1,
                     'target_type' => $step['target_type'],
                     'target' => $step['target'],
@@ -480,8 +483,20 @@ class TourDefinition
                     'placement' => $step['placement'],
                     'extra' => $step['extra'],
                     'translations' => $step['translations'] ?? null,
-                ]);
+                ];
+
+                $current = $existing->get($index);
+
+                if ($current instanceof TourStep) {
+                    $current->update($attributes);
+                } else {
+                    $current = $tour->steps()->create($attributes);
+                }
+
+                $keptIds[] = $current->getKey();
             }
+
+            $tour->steps()->whereKeyNot($keptIds)->delete();
 
             return $tour->load('steps');
         });

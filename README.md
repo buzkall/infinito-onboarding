@@ -6,6 +6,8 @@ Infinito Onboarding shows your *existing* users what changed: a guided tour that
 
 It is built on [Driver.js](https://driverjs.com) (bundled, no CDN) and targets **Filament 5, Laravel 12+, Livewire 4, PHP 8.3+**.
 
+![A guided tour step highlighting the Export orders action in a Filament panel](docs/screenshots/tour.png)
+
 ## How is this different from an onboarding tour?
 
 Classic onboarding tours run once for *new* users, live in code, and break the moment a class name changes. Infinito Onboarding is made for the *what's new* problem:
@@ -65,6 +67,24 @@ Everything is opt-in: with only `->plugin(InfinitoOnboardingPlugin::make())` the
 | `resource(bool\|Closure, ?string $class)` | `false` | Registers `TourResource` (pass a subclass to customise it). |
 | `navigationGroup()` / `navigationSort()` | `null` | Placement of the resource in the sidebar. |
 | `topbarTrigger(bool\|Closure, string $hook)` | `false` | Renders the "What's new" changelog button (hook defaults to `GLOBAL_SEARCH_AFTER`). |
+
+## Screenshots
+
+| Guided tour (dark mode) | Hint mode (beacons) |
+|---|---|
+| ![Guided tour in dark mode](docs/screenshots/tour-dark.png) | ![Pulsing beacon opened next to the Bulk actions button](docs/screenshots/hints.png) |
+
+| Record mode: pick an element | Record mode: write the step |
+|---|---|
+| ![Hovering a form field in record mode shows the selector it would capture](docs/screenshots/record-mode-pick.png) | ![The floating editor with target, title, body, preconditions and placement](docs/screenshots/record-mode-editor.png) |
+
+| Changelog modal | "What's new" topbar button |
+|---|---|
+| ![Release notes modal](docs/screenshots/changelog.png) | ![The topbar trigger re-opening the latest changelogs](docs/screenshots/topbar-changelog.png) |
+
+| Tour resource | Analytics on the edit page |
+|---|---|
+| ![The Onboarding Tours resource table](docs/screenshots/resource-list.png) | ![Views, completion rate, per-step drop-off and missing targets](docs/screenshots/analytics.png) |
 
 ## Targeting: `->tourTarget()` is the recommended approach
 
