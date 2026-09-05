@@ -575,6 +575,7 @@ export function infinitoOnboardingHints(config = {}) {
     let instance = null
     let teardown = []
     let frame = null
+    let viewed = false
 
     const report = (name, detail = {}) => {
         if (typeof config.onEvent !== 'function') return
@@ -702,6 +703,8 @@ export function infinitoOnboardingHints(config = {}) {
         report('step', { step_id: beacon.step.id ?? null })
     }
 
+    const steps = Array.isArray(config.steps) ? config.steps : []
+
     const mountOne = async (step) => {
         if (dismissed.has(Number(step.id))) return
 
@@ -736,15 +739,19 @@ export function infinitoOnboardingHints(config = {}) {
         document.body.appendChild(node)
         beacons.push(beacon)
         position(beacon)
+
+        if (!viewed) {
+            // Reported on the first beacon, not after every target resolved:
+            // a fast user may dismiss everything before a missing target
+            // times out.
+            viewed = true
+            report('view', { hints: steps.length })
+        }
     }
 
     // Beacons mount concurrently so a missing target never delays the others.
     const mount = async (steps) => {
         await Promise.all(steps.map(mountOne))
-
-        if (beacons.length > 0) {
-            report('view', { hints: beacons.length })
-        }
     }
 
     const bind = () => {
@@ -773,7 +780,7 @@ export function infinitoOnboardingHints(config = {}) {
     return {
         init() {
             bind()
-            this.$nextTick(() => mount(Array.isArray(config.steps) ? config.steps : []))
+            this.$nextTick(() => mount(steps))
         },
 
         destroy() {
