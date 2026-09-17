@@ -3,14 +3,18 @@
 namespace Arzcode\InfinitoOnboarding\Filament\Resources;
 
 use Arzcode\InfinitoOnboarding\Enums\TourMode;
-use Arzcode\InfinitoOnboarding\Filament\Resources\TourResource\Pages;
+use Arzcode\InfinitoOnboarding\Filament\Resources\TourResource\Pages\CreateTour;
+use Arzcode\InfinitoOnboarding\Filament\Resources\TourResource\Pages\EditTour;
+use Arzcode\InfinitoOnboarding\Filament\Resources\TourResource\Pages\ListTours;
 use Arzcode\InfinitoOnboarding\Filament\Resources\TourResource\RelationManagers\StepsRelationManager;
 use Arzcode\InfinitoOnboarding\Filament\Support\TranslationTabs;
 use Arzcode\InfinitoOnboarding\InfinitoOnboardingPlugin;
+use Arzcode\InfinitoOnboarding\Livewire\TourOverlay;
 use Arzcode\InfinitoOnboarding\Models\Tour;
 use Arzcode\InfinitoOnboarding\Support\PanelRoutes;
 use Arzcode\InfinitoOnboarding\Support\Segments;
 use BackedEnum;
+use Closure;
 use Filament\Actions\Action;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteAction;
@@ -24,6 +28,7 @@ use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Notifications\Notification;
+use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Resources\Resource;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Utilities\Get;
@@ -38,6 +43,7 @@ use Filament\Tables\Filters\TernaryFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Str;
+use Livewire\Component;
 use UnitEnum;
 
 class TourResource extends Resource
@@ -49,6 +55,14 @@ class TourResource extends Resource
     protected static ?string $slug = 'onboarding-tours';
 
     protected static ?string $recordTitleAttribute = 'name';
+
+    protected static bool $hasTitleCaseModelLabel = false;
+
+    /**
+     * Tours are scoped by their `tenant_id` column (see getEloquentQuery())
+     * rather than Filament's ownership relationship, which Tour does not have.
+     */
+    protected static bool $isScopedToTenant = false;
 
     public static function getModelLabel(): string
     {
@@ -78,7 +92,7 @@ class TourResource extends Resource
     {
         $plugin = static::plugin();
 
-        if ($plugin === null || ! $plugin->isAuthorized()) {
+        if (! $plugin instanceof InfinitoOnboardingPlugin || ! $plugin->isAuthorized()) {
             return false;
         }
 
@@ -201,8 +215,7 @@ class TourResource extends Resource
                         TextInput::make('tenant_id')
                             ->label(__('infinito-onboarding::onboarding.resource.fields.tenant_id'))
                             ->helperText(__('infinito-onboarding::onboarding.resource.fields.tenant_id_help'))
-                            ->visible(fn (): bool => (bool) Filament::getCurrentPanel()?->hasTenancy())
-                            ->default(fn (): ?string => Filament::getTenant()?->getKey() !== null ? (string) Filament::getTenant()->getKey() : null),
+                            ->visible(fn (): bool => (bool) Filament::getCurrentPanel()?->hasTenancy() && TourOverlay::currentTenantId() === null),
                     ]),
             ]);
     }
@@ -252,6 +265,7 @@ class TourResource extends Resource
             ])
             ->recordActions([
                 static::previewAction(),
+                static::recordStepsAction(),
                 EditAction::make(),
                 static::resetSeenStateAction(),
                 DeleteAction::make(),
@@ -271,6 +285,112 @@ class TourResource extends Resource
             ->color('gray')
             ->url(fn (Tour $record): string => $record->getPreviewUrl())
             ->openUrlInNewTab();
+    }
+
+    /**
+     * Opens record mode on the tour's page. When the route pattern does not
+     * name a single page, a modal asks for the URL to record on.
+     */
+    public static function recordStepsAction(): Action
+    {
+        return Action::make('recordSteps')
+            ->label(__('infinito-onboarding::onboarding.resource.actions.record_steps'))
+            ->icon(Heroicon::OutlinedCursorArrowRays)
+            ->color('gray')
+            ->url(function (?Tour $record, Component $livewire): ?string {
+                $tour = static::actionTour($record, $livewire);
+
+                return $tour->hasSinglePageRoute() ? $tour->getRecordUrl() : null;
+            })
+            ->modalHeading(__('infinito-onboarding::onboarding.resource.actions.record_steps'))
+            ->modalDescription(__('infinito-onboarding::onboarding.resource.actions.record_steps_description'))
+            ->modalSubmitActionLabel(__('infinito-onboarding::onboarding.resource.actions.record_submit'))
+            ->fillForm(fn (?Tour $record, Component $livewire): array => ['path' => static::actionTour($record, $livewire)->getPagePath()])
+            ->schema([
+                static::pagePathInput(),
+            ])
+            ->action(function (array $data, ?Tour $record, Component $livewire, Action $action): void {
+                $action->redirect(static::actionTour($record, $livewire)->getRecordUrl(Tour::normalisePagePath($data['path'])));
+            });
+    }
+
+    /**
+     * Creates an unpublished draft tour for the given page and opens record
+     * mode on it.
+     */
+    public static function recordNewTourAction(): Action
+    {
+        return Action::make('recordNewTour')
+            ->label(__('infinito-onboarding::onboarding.resource.actions.record_new_tour'))
+            ->icon(Heroicon::OutlinedCursorArrowRays)
+            ->color('gray')
+            ->modalDescription(__('infinito-onboarding::onboarding.resource.actions.record_new_tour_description'))
+            ->modalSubmitActionLabel(__('infinito-onboarding::onboarding.resource.actions.record_submit'))
+            ->schema([
+                TextInput::make('name')
+                    ->label(__('infinito-onboarding::onboarding.resource.fields.name'))
+                    ->required()
+                    ->maxLength(255)
+                    ->live(onBlur: true)
+                    ->afterStateUpdated(function (Set $set, Get $get, ?string $state): void {
+                        if (blank($get('key')) && filled($state)) {
+                            $set('key', Str::slug($state));
+                        }
+                    }),
+                TextInput::make('key')
+                    ->label(__('infinito-onboarding::onboarding.resource.fields.key'))
+                    ->helperText(__('infinito-onboarding::onboarding.resource.fields.key_help'))
+                    ->required()
+                    ->alphaDash()
+                    ->maxLength(255)
+                    ->unique(Tour::class, 'key'),
+                static::pagePathInput(),
+            ])
+            ->action(function (array $data, Action $action): void {
+                $path = (string) Tour::normalisePagePath($data['path']);
+
+                $tour = Tour::query()->create(static::mutateFormData([
+                    'name' => $data['name'],
+                    'key' => $data['key'],
+                    'route_pattern' => Str::before($path, '?'),
+                    'is_active' => true,
+                    'is_published' => false,
+                ]));
+
+                $action->redirect($tour->getRecordUrl($path));
+            });
+    }
+
+    protected static function pagePathInput(): TextInput
+    {
+        return TextInput::make('path')
+            ->label(__('infinito-onboarding::onboarding.resource.fields.record_path'))
+            ->helperText(__('infinito-onboarding::onboarding.resource.fields.record_path_help'))
+            ->prefix(rtrim(url('/'), '/') . '/')
+            ->placeholder('admin/orders')
+            ->required()
+            ->maxLength(2048)
+            ->rule(fn (): Closure => function (string $attribute, mixed $value, Closure $fail): void {
+                if (! is_string($value) || Tour::normalisePagePath($value) === null) {
+                    $fail(__('infinito-onboarding::onboarding.resource.fields.record_path_invalid'));
+                }
+            });
+    }
+
+    /**
+     * The tour a record action acts on: the row or page record, or the owner
+     * of the steps relation manager for its header action.
+     */
+    protected static function actionTour(?Tour $record, Component $livewire): Tour
+    {
+        if ($record instanceof Tour || ! $livewire instanceof RelationManager) {
+            return $record ?? throw new \LogicException('The record steps action needs a tour.');
+        }
+
+        /** @var Tour $tour */
+        $tour = $livewire->getOwnerRecord();
+
+        return $tour;
     }
 
     public static function resetSeenStateAction(): Action
@@ -301,15 +421,23 @@ class TourResource extends Resource
     public static function getPages(): array
     {
         return [
-            'index' => Pages\ListTours::route('/'),
-            'create' => Pages\CreateTour::route('/create'),
-            'edit' => Pages\EditTour::route('/{record}/edit'),
+            'index' => ListTours::route('/'),
+            'create' => CreateTour::route('/create'),
+            'edit' => EditTour::route('/{record}/edit'),
         ];
     }
 
+    /**
+     * @return Builder<Tour>
+     */
     public static function getEloquentQuery(): Builder
     {
-        return parent::getEloquentQuery()->withCount(['steps', 'completions']);
+        /** @var Builder<Tour> $query */
+        $query = parent::getEloquentQuery();
+
+        return $query
+            ->manageableIn(TourOverlay::currentTenantId())
+            ->withCount(['steps', 'completions']);
     }
 
     /**
@@ -332,11 +460,15 @@ class TourResource extends Resource
         }
 
         $audience = collect($data['audience'] ?? [])
-            ->map(fn (mixed $value): mixed => is_array($value) ? array_values(array_filter($value, fn (mixed $item): bool => filled($item))) : $value)
+            ->map(fn (mixed $value): mixed => is_array($value) ? array_values(array_filter($value, filled(...))) : $value)
             ->filter(fn (mixed $value): bool => filled($value))
             ->all();
 
         $data['audience'] = $audience === [] ? null : $audience;
+
+        if (($tenantId = TourOverlay::currentTenantId()) !== null) {
+            $data['tenant_id'] = $tenantId;
+        }
 
         if (array_key_exists('translations', $data)) {
             $data['translations'] = Tour::cleanTranslations(is_array($data['translations']) ? $data['translations'] : null);

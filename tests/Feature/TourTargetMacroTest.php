@@ -97,7 +97,7 @@ it('renders data-tour on a sidebar navigation item', function (): void {
     ])->render();
 
     expect($html)->toContain('data-tour="nav-orders"');
-})->skip(fn () => ! view()->exists('filament-panels::components.sidebar.item'), 'sidebar item view not available');
+})->skip(fn (): bool => ! view()->exists('filament-panels::components.sidebar.item'), 'sidebar item view not available');
 
 it('targets the entry wrapper for infolist entries', function (): void {
     $entry = TextEntry::make('status')->tourTarget('status-entry');

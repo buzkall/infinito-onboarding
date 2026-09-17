@@ -21,7 +21,7 @@ Targets: **PHP 8.3+, Laravel 12+, Filament 5, Livewire 4**.
 2. **Assets.** Register JS/CSS from the service provider's `packageBooted()` with `FilamentAsset::register([...], package: 'arzcode/infinito-onboarding')`. Use `Js::make()` / `Css::make()` pointing at files in `resources/dist/`. Alpine components are registered as `AlpineComponent::make()`. Consumers run `php artisan filament:assets`.
 3. **Render hooks.** Always `FilamentView::registerRenderHook(PanelsRenderHook::X, fn () => ..., scopes: $panel->getId() ... )` — a hook is **always scoped to the registering panel** so multi-panel apps never double-render. Prefer registering from `InfinitoOnboardingPlugin::boot()`, where the `$panel` is known.
 4. **DOM targeting.** Components are targeted through `->extraAttributes(['data-tour' => 'key'])` (or `extraInputAttributes()` / `extraEntryWrapperAttributes()` when the wrapper is not the interactive element). The public API for this is the `->tourTarget('key')` macro. **Never** rely on `.fi-*` classes as a primary targeting strategy — they change between Filament releases.
-5. **Livewire 4.** Components extend `Livewire\Component`, are registered with `Livewire::component('infinito-onboarding::name', ...)` from the service provider, and rendered via `@livewire(...)` inside the render hook. Anything DOM-related must survive Livewire morphs (see JS rules).
+5. **Livewire 4.** Components extend `Livewire\Component`, are registered with `Livewire::component('infinito-onboarding.name', ...)` from the service provider, and rendered via `@livewire(...)` inside the render hook. Anything DOM-related must survive Livewire morphs (see JS rules).
 6. **Namespaced everything.** Views under `resources/views`, translations under `resources/lang`, migrations under `database/migrations` (published, not auto-loaded in consumer apps, but auto-loaded in tests).
 
 ## Database schema
@@ -53,14 +53,20 @@ Models: `Models\Tour`, `Models\TourStep`, `Models\TourCompletion`, `Models\TourE
 6. `tenant_id` equals the current tenant, or is null
 7. **no completion row** exists for (`tour`, `user`, `tenant`, `version`) — bumping `version` re-shows the tour
 
+`TourResource` sets `$isScopedToTenant = false` (Tour has no tenant relationship; Filament's global scope would throw on every Tour query) and scopes by `tenant_id` through `Tour::scopeManageableIn()`. Anything that lets authors manage tours must use that scope too.
+
 ## Targeting priority (this is the whole product)
 
 When resolving or recording a step's element:
 
+Only the picked element's **own** attributes identify it (or those of an ancestor occupying the same box, or a `data-tour` wrapper at most 6× its area, which is how `->tourTarget()` stamps form fields). Never climb to any ancestor with an id: `<main id="fi-main-content">` must not stand in for a card inside it.
+
 1. `[data-tour="key"]` — set via `->tourTarget('key')`. **The happy path.** Score: green.
-2. Element `id`. Score: green.
-3. `wire:key`-derived selector. Score: amber.
-4. Generated shortest-unique CSS path. Score: red (flagged as fragile in the UI, with a hint naming the component to add `->tourTarget()` to).
+2. Stable element `id` (not Livewire/Alpine generated, not counters like `input-1`). Score: green.
+3. `[wire:name="App\Filament\Widgets\X"]` — Livewire 4 component roots (widgets, pages, relation managers). Score: green.
+4. Stable `wire:key` (not `lw-…`, no 20-char Livewire ids), `wire:click`, link `href` / form `action` path, input `name`. Score: amber.
+5. Shortest unique path from the nearest identified ancestor (1–4). Score: amber when at most 3 levels deep, red otherwise.
+6. Generated `tag:nth-of-type` path from the document. Score: red (flagged as fragile in the UI, with a hint naming the component to add `->tourTarget()` to).
 
 A selector that matches more than one element is always red.
 
@@ -76,7 +82,7 @@ A selector that matches more than one element is always red.
 
 ## Quality gates
 
-- Every PR keeps **Pest green** (`vendor/bin/pest`) and **Pint clean** (`vendor/bin/pint --test`). PHPStan runs at level 5 (`vendor/bin/phpstan analyse`).
+- Every PR keeps **Pest green** (`vendor/bin/pest`), **Pint clean** (`vendor/bin/pint --test`) and **Rector clean** (`vendor/bin/rector process --dry-run`; configured in `rector.php` for PHP 8.3 with the dead code, code quality, type declaration and early return sets plus Laravel code quality and collection sets — run Pint after applying). PHPStan runs at level 5 (`vendor/bin/phpstan analyse`).
 - Tests use Orchestra Testbench with an in-memory SQLite database and a real Filament panel registered in `tests/TestCase.php`.
 - No feature lands without tests for its behaviour. Resolver branches, in particular, need a failing-if-removed test each.
 - Commit messages follow Conventional Commits (`feat:`, `fix:`, `chore:`, `docs:`, `test:`).
@@ -95,5 +101,5 @@ A selector that matches more than one element is always red.
 
 - `Livewire\TourRecorder` is rendered by the same BODY_END hook as the overlay when `?onboarding-record=<key>` is present **and** the plugin's `authorize()` closure passes. An unknown key creates an unpublished draft tour scoped to the current path.
 - `resources/dist/recorder.js` is registered with `->loadedOnRequest()` and injected as a `<script>` by the recorder view only, so ordinary pages never load it. It depends on `window.InfinitoOnboarding.createTourRunner` from the main bundle for its Preview button.
-- Selector scoring lives in `captureTarget()` (`resources/js/recorder.js`): `data-tour` → green, stable `id` → green, `wire:key` → amber, generated `tag:nth-of-type` path → red (plus a hint naming the Filament component to add `->tourTarget()` to). Anything matching ≠ 1 element is red.
+- Selector scoring lives in `captureTarget()` / `identitiesOf()` (`resources/js/recorder.js`), following the targeting priority above; `tests/browser/recorder.smoke.js` asserts a case per strategy. While picking, ArrowUp / ArrowDown move the highlight to the parent / back to the child.
 - Steps are persisted through `TourRecorder::saveSteps()` which validates, keeps ids it is given, reorders and deletes the rest inside a transaction.

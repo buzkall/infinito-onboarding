@@ -117,13 +117,13 @@ class Tour extends Model
     */
 
     /** @param  Builder<Tour>  $query */
-    public function scopeActive(Builder $query): Builder
+    protected function scopeActive(Builder $query): Builder
     {
         return $query->where('is_active', true);
     }
 
     /** @param  Builder<Tour>  $query */
-    public function scopePublished(Builder $query, ?Carbon $now = null): Builder
+    protected function scopePublished(Builder $query, ?Carbon $now = null): Builder
     {
         return $query
             ->whereNotNull('published_at')
@@ -131,7 +131,7 @@ class Tour extends Model
     }
 
     /** @param  Builder<Tour>  $query */
-    public function scopeWithinWindow(Builder $query, ?Carbon $now = null): Builder
+    protected function scopeWithinWindow(Builder $query, ?Carbon $now = null): Builder
     {
         $now ??= now();
 
@@ -148,20 +148,25 @@ class Tour extends Model
      *
      * @param  Builder<Tour>  $query
      */
-    public function scopeForRoute(Builder $query, string $route): Builder
+    protected function scopeForRoute(Builder $query, string $route): Builder
     {
+        $route = ltrim($route, '/');
+
+        // Comma-separated lists and leading slashes are resolved by matchesRoute().
         return $query->where(function (Builder $query) use ($route): void {
             $query
                 ->whereNull('route_pattern')
                 ->orWhere('route_pattern', '')
                 ->orWhere('route_pattern', '*')
                 ->orWhere('route_pattern', $route)
-                ->orWhere('route_pattern', 'like', '%*%');
+                ->orWhere('route_pattern', '/' . $route)
+                ->orWhere('route_pattern', 'like', '%*%')
+                ->orWhere('route_pattern', 'like', '%,%');
         });
     }
 
     /** @param  Builder<Tour>  $query */
-    public function scopeForTenant(Builder $query, ?string $tenantId): Builder
+    protected function scopeForTenant(Builder $query, ?string $tenantId): Builder
     {
         return $query->where(function (Builder $query) use ($tenantId): void {
             $query->whereNull('tenant_id');
@@ -172,14 +177,25 @@ class Tour extends Model
         });
     }
 
+    /**
+     * Tours an author may manage: inside a tenant only that tenant's own
+     * tours, so one tenant can never edit what another tenant's users see.
+     *
+     * @param  Builder<Tour>  $query
+     */
+    protected function scopeManageableIn(Builder $query, ?string $tenantId): Builder
+    {
+        return $query->when(filled($tenantId), fn (Builder $query) => $query->where('tenant_id', $tenantId));
+    }
+
     /** @param  Builder<Tour>  $query */
-    public function scopeOrdered(Builder $query): Builder
+    protected function scopeOrdered(Builder $query): Builder
     {
         return $query->orderBy('sort')->orderBy('id');
     }
 
     /** @param  Builder<Tour>  $query */
-    public function scopeMode(Builder $query, TourMode $mode): Builder
+    protected function scopeMode(Builder $query, TourMode $mode): Builder
     {
         return $query->where('mode', $mode);
     }
@@ -199,7 +215,7 @@ class Tour extends Model
         $route = ltrim($route, '/');
 
         return collect(explode(',', $this->route_pattern))
-            ->map(fn (string $pattern) => ltrim(trim($pattern), '/'))
+            ->map(fn (string $pattern): string => ltrim(trim($pattern), '/'))
             ->filter()
             ->contains(fn (string $pattern) => Str::is($pattern, $route));
     }
@@ -230,15 +246,71 @@ class Tour extends Model
      */
     public function getPreviewUrl(): string
     {
-        $pattern = (string) Str::of((string) $this->route_pattern)->before(',')->before('*')->trim()->trim('/');
-
-        if ($pattern === '') {
-            $pattern = trim((string) (Filament::getCurrentPanel()?->getPath() ?? ''), '/');
-        }
-
         $parameter = (string) config('infinito-onboarding.query_parameters.preview', 'onboarding-preview');
 
-        return url($pattern) . '?' . http_build_query([$parameter => $this->key]);
+        return static::pageUrlWith($this->getPagePath(), $parameter, $this->key);
+    }
+
+    /**
+     * Record mode on the given page path, or on the page derived from the
+     * route pattern when none is given.
+     */
+    public function getRecordUrl(?string $path = null): string
+    {
+        $parameter = (string) config('infinito-onboarding.query_parameters.record', 'onboarding-record');
+
+        return static::pageUrlWith($path ?? $this->getPagePath(), $parameter, $this->key);
+    }
+
+    /**
+     * The page the route pattern points at: the first pattern up to its
+     * first wildcard, or the panel root when there is no pattern.
+     */
+    public function getPagePath(): string
+    {
+        $path = (string) Str::of((string) $this->route_pattern)->before(',')->before('*')->trim()->trim('/');
+
+        return $path !== '' ? $path : trim((string) (Filament::getCurrentPanel()?->getPath() ?? ''), '/');
+    }
+
+    /**
+     * Whether the route pattern names a single page. Several patterns, or a
+     * wildcard in the middle of the path, need a real URL from the author.
+     */
+    public function hasSinglePageRoute(): bool
+    {
+        $pattern = trim((string) $this->route_pattern);
+
+        return ! str_contains($pattern, ',') && ! str_contains(rtrim($pattern, '*'), '*');
+    }
+
+    /**
+     * Turns a path or a full URL of this app into a path relative to the app
+     * root. Returns null for other hosts and for paths with wildcards.
+     */
+    public static function normalisePagePath(string $input): ?string
+    {
+        $input = trim($input);
+        $root = rtrim(url('/'), '/');
+
+        if (Str::startsWith($input, $root . '/') || $input === $root) {
+            $input = Str::after($input, $root);
+        } elseif (preg_match('#^[a-z][a-z0-9+.\-]*:|^//#i', $input)) {
+            return null;
+        }
+
+        if (str_contains($input, '*')) {
+            return null;
+        }
+
+        return trim($input, '/');
+    }
+
+    protected static function pageUrlWith(string $path, string $parameter, string $value): string
+    {
+        $url = url($path);
+
+        return $url . (str_contains($url, '?') ? '&' : '?') . http_build_query([$parameter => $value]);
     }
 
     public function isChangelog(): bool

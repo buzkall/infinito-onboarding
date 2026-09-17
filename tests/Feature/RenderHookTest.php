@@ -95,5 +95,5 @@ it('reports authorisation through the plugin', function (): void {
     $this->user->update(['roles' => ['tour-author']]);
 
     expect(InfinitoOnboardingPlugin::get()->isAuthorized($this->user))->toBeTrue()
-        ->and(InfinitoOnboardingPlugin::get()->isAuthorized(null))->toBeFalse();
+        ->and(InfinitoOnboardingPlugin::get()->isAuthorized())->toBeFalse();
 });

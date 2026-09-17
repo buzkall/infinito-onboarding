@@ -3,9 +3,9 @@
  *
  * Activated by the TourRecorder Livewire component (query flag
  * `?onboarding-record=<tour-key>`, authorised users only). Hover highlights
- * the element under the cursor with the selector it would capture; clicking
- * captures it using the targeting priority (data-tour → id → wire:key →
- * generated CSS path), scores it, and opens the step form. Steps are kept in
+ * the element under the cursor with the selector it would capture (arrow up
+ * and down move to the parent or back to the child); clicking captures it
+ * (see captureTarget()), scores it, and opens the step form. Steps are kept in
  * the floating panel, can be reordered, previewed and saved through Livewire.
  */
 
@@ -29,9 +29,11 @@ const isUseful = (element) =>
 
 /**
  * Filament renders ids for many components (e.g. form inputs); Livewire and
- * Alpine also generate throwaway ids. Skip the generated ones.
+ * Alpine also generate throwaway ids, and some Blade components number
+ * theirs (`input-1`). Skip the generated ones.
  */
-const isStableId = (id) => Boolean(id) && !/^(lw-|wire|alpine|_x_|:r|radix|headlessui)/i.test(id) && !/^\d+$/.test(id) && !/-[0-9a-f]{8,}$/i.test(id)
+const isStableId = (id) =>
+    Boolean(id) && !/^(lw-|wire|alpine|_x_|:r|radix|headlessui)/i.test(id) && !/^\d+$/.test(id) && !/-[0-9a-f]{8,}$/i.test(id) && !/^[a-z]+-\d+$/i.test(id)
 
 /**
  * Shortest unique CSS path: walk up from the element adding `tag:nth-of-type`
@@ -122,8 +124,140 @@ const slug = (text) =>
         .slice(0, 40)
 
 /**
- * Capture the best target for an element following the priority order.
- * Returns { target_type, target, selector, score, strategy, hint, matches }.
+ * Livewire generates wire:key values such as `lw-2767091022-0-0` and embeds
+ * 20-character component ids in others; neither survives a reload.
+ */
+const isStableWireKey = (key) => Boolean(key) && !/^lw-/.test(key) && !/[A-Za-z0-9]{20,}/.test(key)
+
+const urlPath = (value) => {
+    try {
+        const url = new URL(value, window.location.href)
+
+        return url.origin === window.location.origin ? url.pathname + url.search : null
+    } catch (_) {
+        return null
+    }
+}
+
+/**
+ * Ways to identify an element by its own attributes, best first. Nothing here
+ * looks at ancestors: an id on <main> must never stand in for a card inside it.
+ */
+export function identitiesOf(element) {
+    const identities = []
+    const add = (identity) => identities.push({ target_type: 'css', hint: null, ...identity, target: identity.target ?? identity.selector })
+
+    const tourKey = element.getAttribute('data-tour')
+
+    if (tourKey) {
+        add({ target_type: 'data_tour', target: tourKey, selector: attributeSelector('data-tour', tourKey), score: 'green', strategy: 'data-tour' })
+    }
+
+    if (isStableId(element.id)) {
+        add({ selector: `#${cssEscape(element.id)}`, score: 'green', strategy: 'id' })
+    }
+
+    // Livewire 4 stamps component roots (widgets, relation managers…) with their class name.
+    const componentName = element.getAttribute('wire:name')
+
+    if (componentName) {
+        add({ selector: attributeSelector('wire:name', componentName), score: 'green', strategy: 'livewire-component' })
+    }
+
+    const wireKey = element.getAttribute('wire:key')
+
+    if (isStableWireKey(wireKey)) {
+        add({ selector: attributeSelector('wire:key', wireKey), score: 'amber', strategy: 'wire:key', hint: 'wire:key values are usually stable within a page, but may change between Filament versions.' })
+    }
+
+    const wireClick = element.getAttribute('wire:click')
+
+    if (wireClick) {
+        add({ selector: attributeSelector('wire:click', wireClick), score: 'amber', strategy: 'wire:click', hint: null })
+    }
+
+    const tag = element.tagName.toLowerCase()
+    const href = tag === 'a' ? urlPath(element.getAttribute('href')) : null
+
+    if (href && href !== '/' && !href.startsWith('/#')) {
+        add({ selector: `a[href$="${href.replace(/["\\]/g, '\\$&')}"]`, score: 'amber', strategy: 'href', hint: null })
+    }
+
+    const action = tag === 'form' ? urlPath(element.getAttribute('action')) : null
+
+    if (action) {
+        add({ selector: `form[action$="${action.replace(/["\\]/g, '\\$&')}"]`, score: 'amber', strategy: 'form-action', hint: null })
+    }
+
+    const name = ['input', 'select', 'textarea', 'button'].includes(tag) ? element.getAttribute('name') : null
+
+    if (name) {
+        add({ selector: `${tag}${attributeSelector('name', name)}`, score: 'amber', strategy: 'name', hint: null })
+    }
+
+    return identities
+}
+
+const uniqueIdentity = (element) => identitiesOf(element).find((identity) => countMatches(identity.selector) === 1) ?? null
+
+/**
+ * Two boxes are the same thing on screen when every edge is within a few
+ * pixels: a widget root, its <section> and the section's content wrapper.
+ */
+const sameBox = (a, b) => {
+    const ra = a.getBoundingClientRect()
+    const rb = b.getBoundingClientRect()
+
+    return Math.abs(ra.top - rb.top) <= 4 && Math.abs(ra.left - rb.left) <= 4 && Math.abs(ra.right - rb.right) <= 4 && Math.abs(ra.bottom - rb.bottom) <= 4
+}
+
+const area = (element) => {
+    const rect = element.getBoundingClientRect()
+
+    return rect.width * rect.height
+}
+
+const segmentFor = (element) => {
+    const tag = element.tagName.toLowerCase()
+    const siblings = element.parentElement ? Array.from(element.parentElement.children).filter((child) => child.tagName === element.tagName) : []
+
+    return siblings.length > 1 ? `${tag}:nth-of-type(${siblings.indexOf(element) + 1})` : tag
+}
+
+/** Deeper paths from an anchor break as easily as a path from the document. */
+const MAX_ANCHOR_DEPTH = 3
+
+/**
+ * Selector relative to an identified ancestor, using the shortest tail of
+ * the path that is already unique inside the page.
+ */
+const anchoredPath = (anchorSelector, anchor, element) => {
+    const segments = []
+
+    for (let current = element; current && current !== anchor; current = current.parentElement) {
+        segments.unshift(segmentFor(current))
+    }
+
+    // Shortest unique tail: `anchor div:nth-of-type(2) > div` rather than every wrapper in between.
+    for (let depth = 1; depth < segments.length; depth++) {
+        const selector = `${anchorSelector} ${segments.slice(-depth).join(' > ')}`
+
+        if (countMatches(selector) === 1) return { selector, depth }
+    }
+
+    return { selector: [anchorSelector, ...segments].join(' > '), depth: segments.length }
+}
+
+/**
+ * Capture the best target for an element. Returns
+ * { target_type, target, selector, score, strategy, hint, matches }.
+ *
+ * 1. The element's own identity (data-tour, id, Livewire component name,
+ *    wire:key, wire:click, link or form URL, input name), or that of an
+ *    ancestor occupying the same box, or a data-tour wrapper hugging it.
+ * 2. A path from the nearest identified ancestor: amber when it is at most
+ *    MAX_ANCHOR_DEPTH levels deep, red otherwise.
+ * 3. A generated path from the document (red).
  */
 export function captureTarget(element) {
     if (!(element instanceof Element)) return null
@@ -143,52 +277,41 @@ export function captureTarget(element) {
         return { ...result, matches }
     }
 
-    const tourTarget = element.closest('[data-tour]')
+    const component = describeComponent(element)
+    const tourTargetHint = `Add ->tourTarget('key') to the ${component.kind}${component.label ? ` "${component.label}"` : ''} for a selector that survives layout changes, e.g. ${component.example}`
+    const elementArea = Math.max(area(element), 1)
 
-    if (tourTarget) {
-        const key = tourTarget.getAttribute('data-tour')
+    // ->tourTarget() on a form field stamps the wrapper (label, input and help text),
+    // so a data-tour ancestor a few times the element's size still counts as the element.
+    for (let current = element; current && isUseful(current) && area(current) <= elementArea * 6; current = current.parentElement) {
+        const identity = current === element || sameBox(current, element)
+            ? uniqueIdentity(current)
+            : identitiesOf(current).find((candidate) => candidate.strategy === 'data-tour' && countMatches(candidate.selector) === 1)
 
-        return withScore({
-            target_type: 'data_tour',
-            target: key,
-            selector: attributeSelector('data-tour', key),
-            score: 'green',
-            strategy: 'data-tour',
-            hint: null,
-        })
+        if (identity) {
+            return withScore(identity.score === 'green' || identity.hint ? identity : { ...identity, hint: tourTargetHint })
+        }
     }
 
-    const withId = element.closest('[id]')
+    for (let anchor = element.parentElement; anchor && isUseful(anchor); anchor = anchor.parentElement) {
+        const identity = uniqueIdentity(anchor)
 
-    if (withId && isStableId(withId.id)) {
-        return withScore({
-            target_type: 'css',
-            target: `#${cssEscape(withId.id)}`,
-            selector: `#${cssEscape(withId.id)}`,
-            score: 'green',
-            strategy: 'id',
-            hint: null,
-        })
-    }
+        if (identity) {
+            const { selector, depth } = anchoredPath(identity.selector, anchor, element)
+            const isClose = depth <= MAX_ANCHOR_DEPTH
 
-    const wireKeyed = element.closest('[wire\\:key]')
-
-    if (wireKeyed) {
-        const key = wireKeyed.getAttribute('wire:key')
-        const selector = attributeSelector('wire:key', key)
-
-        return withScore({
-            target_type: 'css',
-            target: selector,
-            selector,
-            score: 'amber',
-            strategy: 'wire:key',
-            hint: 'wire:key values are usually stable within a page, but may change between Filament versions.',
-        })
+            return withScore({
+                target_type: 'css',
+                target: selector,
+                selector,
+                score: isClose ? 'amber' : 'red',
+                strategy: `inside-${identity.strategy}`,
+                hint: isClose ? tourTargetHint : `Fragile generated path. ${tourTargetHint}`,
+            })
+        }
     }
 
     const path = cssPath(element)
-    const component = describeComponent(element)
 
     return withScore({
         target_type: 'css',
@@ -196,7 +319,7 @@ export function captureTarget(element) {
         selector: path,
         score: 'red',
         strategy: 'css-path',
-        hint: `Fragile generated path. Add ->tourTarget('key') to the ${component.kind}${component.label ? ` "${component.label}"` : ''}, e.g. ${component.example}`,
+        hint: `Fragile generated path. ${tourTargetHint}`,
     })
 }
 
@@ -235,6 +358,8 @@ export function infinitoOnboardingRecorder(config = {}) {
     let keyHandler = null
     let scrollHandler = null
     let hoveredElement = null
+    // The element under the pointer; hoveredElement may be one of its ancestors after ArrowUp.
+    let pointerElement = null
 
     return {
         tour: config.tour ?? null,
@@ -255,6 +380,13 @@ export function infinitoOnboardingRecorder(config = {}) {
 
         init() {
             keyHandler = (event) => {
+                if (this.picking && (event.key === 'ArrowUp' || event.key === 'ArrowDown')) {
+                    event.preventDefault()
+                    this.climb(event.key === 'ArrowUp' ? 'parent' : 'child')
+
+                    return
+                }
+
                 if (event.key !== 'Escape') return
 
                 if (this.previewing) return
@@ -322,6 +454,7 @@ export function infinitoOnboardingRecorder(config = {}) {
             this.picking = false
             this.hover.visible = false
             hoveredElement = null
+            pointerElement = null
             document.body.classList.remove('io-recorder-picking')
 
             document.removeEventListener('mousemove', hoverHandler, true)
@@ -340,14 +473,44 @@ export function infinitoOnboardingRecorder(config = {}) {
             if (!isUseful(element)) {
                 this.hover.visible = false
                 hoveredElement = null
+                pointerElement = null
 
                 return
             }
 
-            if (element === hoveredElement) {
+            if (element === pointerElement) {
                 return
             }
 
+            pointerElement = element
+            this.highlight(element)
+        },
+
+        /**
+         * ArrowUp selects the parent of the highlighted element, ArrowDown
+         * goes back towards the element under the pointer.
+         */
+        climb(direction) {
+            if (!hoveredElement || !pointerElement) return
+
+            if (direction === 'parent') {
+                const parent = hoveredElement.parentElement
+
+                if (isUseful(parent)) this.highlight(parent)
+
+                return
+            }
+
+            let child = pointerElement
+
+            while (child && child.parentElement !== hoveredElement) {
+                child = child.parentElement
+            }
+
+            if (child && hoveredElement !== pointerElement) this.highlight(child)
+        },
+
+        highlight(element) {
             hoveredElement = element
 
             const captured = captureTarget(element)
@@ -370,9 +533,12 @@ export function infinitoOnboardingRecorder(config = {}) {
         },
 
         onClick(event) {
-            const element = document.elementFromPoint(event.clientX, event.clientY)
+            const pointed = document.elementFromPoint(event.clientX, event.clientY)
 
-            if (!isUseful(element)) return
+            if (!isUseful(pointed)) return
+
+            // Keep the ancestor chosen with ArrowUp when the click lands inside it.
+            const element = hoveredElement && hoveredElement.contains(pointed) ? hoveredElement : pointed
 
             event.preventDefault()
             event.stopPropagation()

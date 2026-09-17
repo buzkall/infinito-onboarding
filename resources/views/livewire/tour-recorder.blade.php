@@ -33,17 +33,19 @@
                 <strong x-text="labels.title"></strong>
                 <span class="io-recorder-key" x-text="tour?.key"></span>
                 <span class="io-spacer"></span>
-                <button type="button" class="io-btn io-btn-sm" @click="panelOpen = false" aria-label="Minimise">&minus;</button>
+                <button type="button" class="io-btn io-btn-sm" @click="panelOpen = false" :aria-label="labels.minimise">&minus;</button>
                 <button type="button" class="io-btn io-btn-sm" @click="exit()" x-text="labels.exit"></button>
             </div>
 
             <div class="io-recorder-body">
                 <template x-if="! editorOpen">
                     <div>
-                        <div style="display:flex;gap:0.5rem;margin-bottom:0.75rem">
+                        <div class="io-recorder-toolbar">
                             <button type="button" class="io-btn io-btn-primary" :class="{ 'io-btn-active': picking }" @click="togglePicking()" x-text="picking ? labels.picking : labels.pick"></button>
                             <button type="button" class="io-btn" @click="addCentredStep()" x-text="labels.centred"></button>
                         </div>
+
+                        <p class="io-recorder-picking-hint" x-show="picking" x-text="labels.picking_hint"></p>
 
                         <p class="io-recorder-empty" x-show="steps.length === 0" x-text="labels.empty"></p>
 
@@ -79,7 +81,7 @@
                         <div>
                             <label x-text="labels.target"></label>
                             <div class="io-recorder-target" :class="scoreClass(draft.target_type === 'none' ? 'green' : draft.score)">
-                                <span class="io-score" :class="scoreClass(draft.target_type === 'none' ? 'green' : draft.score)" style="margin-top:0"></span>
+                                <span class="io-score io-score-inline" :class="scoreClass(draft.target_type === 'none' ? 'green' : draft.score)"></span>
                                 <code x-text="draft.target_type === 'none' ? labels.no_target : draft.selector"></code>
                                 <button type="button" class="io-btn io-btn-sm" @click="editorOpen = false; startPicking()" x-text="labels.retarget"></button>
                             </div>
@@ -101,7 +103,7 @@
                             <ul class="io-recorder-before" x-show="(draft.before ?? []).length">
                                 <template x-for="(action, index) in draft.before" :key="index">
                                     <li class="io-recorder-target">
-                                        <span class="io-score" :class="scoreClass(action.score ?? 'amber')" style="margin-top:0"></span>
+                                        <span class="io-score io-score-inline" :class="scoreClass(action.score ?? 'amber')"></span>
                                         <code x-text="action.selector ?? action.target"></code>
                                         <button type="button" class="io-btn io-btn-sm" @click="removeBefore(index)" x-text="labels.remove"></button>
                                     </li>
@@ -125,7 +127,7 @@
                             </select>
                         </div>
 
-                        <div style="display:flex;gap:0.5rem;justify-content:flex-end">
+                        <div class="io-recorder-actions">
                             <button type="button" class="io-btn" @click="cancelEdit()" x-text="labels.cancel"></button>
                             <button type="submit" class="io-btn io-btn-primary" x-text="editingIndex === null ? labels.add_step : labels.update_step"></button>
                         </div>

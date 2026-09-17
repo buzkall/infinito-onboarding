@@ -42,7 +42,7 @@ class ChangelogTrigger extends Component
     {
         $user = $this->user();
 
-        if ($user === null) {
+        if (! $user instanceof Authenticatable) {
             return new Collection;
         }
 
@@ -71,13 +71,14 @@ class ChangelogTrigger extends Component
     {
         $user = $this->user();
 
-        if ($user === null) {
+        if (! $user instanceof Authenticatable) {
             return new Collection;
         }
 
-        return $this->getChangelogs()
-            ->filter(fn (Tour $tour): bool => ! $tour->isSeenBy($user->getAuthIdentifier(), $this->tenantId))
-            ->values();
+        /** @var TourResolver $resolver */
+        $resolver = app(TourResolver::class);
+
+        return $resolver->withoutSeen($this->getChangelogs(), $user, $this->tenantId);
     }
 
     public function hasUnseen(): bool
@@ -102,7 +103,7 @@ class ChangelogTrigger extends Component
     {
         $user = $this->user();
 
-        if ($user === null) {
+        if (! $user instanceof Authenticatable) {
             return;
         }
 

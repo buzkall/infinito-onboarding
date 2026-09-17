@@ -43,11 +43,12 @@ class TourTargetMacro
                 continue;
             }
 
-            $class::macro('tourTarget', function (string $key): mixed {
+            $class::macro(
+                'tourTarget',
                 // Filament binds the closure to the component instance at call time.
                 // @phpstan-ignore-next-line
-                return TourTargetMacro::apply($this, $key);
-            });
+                fn (string $key): mixed => TourTargetMacro::apply($this, $key)
+            );
         }
     }
 

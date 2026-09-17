@@ -99,12 +99,15 @@ return [
     | Views, highlighted steps, completions, dismissals and missing targets
     | are recorded in the events table and shown on the tour's edit page.
     | `onboarding:prune-events` deletes events older than `prune_after_days`.
+    | `max_events_per_minute` caps the events one user can record per tour,
+    | since they are reported by the browser (null disables the limit).
     |
     */
 
     'analytics' => [
         'enabled' => true,
         'prune_after_days' => 90,
+        'max_events_per_minute' => 60,
     ],
 
 ];

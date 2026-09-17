@@ -4,15 +4,43 @@ All notable changes to `arzcode/infinito-onboarding` are documented here. The fo
 
 ## [Unreleased]
 
+### Added
+
+- **Record steps** action on the tour table, the edit page and the Steps relation manager: opens record mode on the tour's page, or asks for the page when the route pattern matches several.
+- **Record a tour** action on the tours list: creates an unpublished draft for a page and opens record mode on it.
+
+### Changed
+
+- Rector (`rector.php`) now runs in CI alongside Pint and PHPStan; the codebase was refactored with it (no behaviour changes).
+
 ### Fixed
+
+- Record mode captured the nearest ancestor with an id, so picking any card on a page recorded `#fi-main-content`. It now identifies the picked element itself (Livewire component name for widgets, `wire:click`, link URL, input name, or a short path inside one of those), ignores Livewire-generated `wire:key` values and numbered ids, and lets you move to the parent / child with ↑ / ↓ while picking.
+- The changelog modal's "Got it" button did nothing: `@js()` is not compiled inside component tag attributes, so its click handler was invalid JavaScript.
+- Tenant-scoped tours now resolve in tenant panels, and a tour for every tenant is no longer shown again after it was completed inside a tenant (the overlay dropped the tenant id).
+- Registering the resource in a panel with tenancy no longer breaks every tour query (`TourResource` is not scoped through Filament's ownership relationship any more).
+- Route pattern lists without wildcards (`->route('admin/orders', 'admin/users')`) and patterns saved with a leading slash now match.
+- The recorder's exit link stays on the recorded page after Livewire requests.
+
+### Security
+
+- Step bodies are sanitised before they are rendered as HTML, and popover titles are escaped.
+- Inside a tenant, the resource and record mode only manage that tenant's tours; preview by key ignores other tenants' tours.
+- Browser-reported analytics events are rate limited per user and tour (`analytics.max_events_per_minute`, default 60).
 
 - Popover, beacon and record-mode colours now read Filament 4+/5 colour variables correctly (`var(--primary-600)` holds a full `oklch()` colour, not an RGB triplet), so the Next / Got it buttons and the picker outline are visible.
 - Record mode shows the "Open this first" and "Advance when the element is clicked" controls (their labels were missing).
+- The resolver and the "What's new" badge check the seen-state of all candidate tours in one query, and the analytics summary is aggregated in the database instead of loading missing-target events into memory.
 - `TourDefinition::save()` updates existing steps in place by position instead of recreating them, so step ids and per-step analytics survive re-running a code-first definition.
 - The changelog modal no longer repeats a single tour's name under the modal heading.
 
 ### Added
 
+- `php artisan infinito-onboarding:install`: publishes the migrations, optionally the config, runs the migrations, publishes the Filament assets and registers the plugin in the panel providers you choose.
+- `php artisan infinito-onboarding:uninstall`: unregisters the plugin and deletes the published assets, then optionally drops the tables, deletes the published migrations, config, translations and views, and runs `composer remove`.
+- `onboarding:forget-user {id}` command and `Support\UserData::forget()` to erase a user's completions and events.
+- Spanish translation.
+- Index on `(user_id, tenant_id)` for the events table: publish the new `add_user_index_to_onboarding_tour_events_table` migration.
 - README screenshots and a Testbench workbench (`composer workbench:reset`, `composer workbench:serve`, `node tests/browser/screenshots.js`) to regenerate them.
 
 ## [1.0.0] - 2026-09-05

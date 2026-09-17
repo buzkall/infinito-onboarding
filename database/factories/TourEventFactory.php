@@ -31,6 +31,6 @@ class TourEventFactory extends Factory
 
     public function type(TourEventType $type): static
     {
-        return $this->state(fn () => ['event' => $type]);
+        return $this->state(fn (): array => ['event' => $type]);
     }
 }

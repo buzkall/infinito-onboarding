@@ -5,11 +5,13 @@ use Arzcode\InfinitoOnboarding\Filament\Resources\TourResource\Pages\EditTour;
 use Arzcode\InfinitoOnboarding\Filament\Widgets\TourAnalyticsWidget;
 use Arzcode\InfinitoOnboarding\Livewire\TourOverlay;
 use Arzcode\InfinitoOnboarding\Models\Tour;
+use Arzcode\InfinitoOnboarding\Models\TourCompletion;
 use Arzcode\InfinitoOnboarding\Models\TourEvent;
 use Arzcode\InfinitoOnboarding\Models\TourStep;
 use Arzcode\InfinitoOnboarding\Support\TourAnalytics;
 use Arzcode\InfinitoOnboarding\Tests\Fixtures\User;
 use Filament\Facades\Filament;
+use Illuminate\Support\Facades\DB;
 use Livewire\Livewire;
 
 beforeEach(function (): void {
@@ -143,6 +145,21 @@ describe('summary', function (): void {
     });
 });
 
+it('aggregates the summary in a fixed number of queries', function (): void {
+    $tour = Tour::factory()->create();
+    TourEvent::factory()->for($tour)->type(TourEventType::View)->count(3)->create();
+    TourEvent::factory()->for($tour)->type(TourEventType::TargetMissing)->count(20)->sequence(fn ($sequence): array => ['meta' => ['selector' => '#s' . $sequence->index]])->create();
+
+    $tour->load('steps');
+
+    DB::enableQueryLog();
+    $summary = app(TourAnalytics::class)->summary($tour);
+
+    expect(DB::getQueryLog())->toHaveCount(4)
+        ->and($summary['views'])->toBe(3)
+        ->and($summary['missing_targets'])->toHaveCount(20);
+});
+
 describe('widget', function (): void {
     beforeEach(function (): void {
         $this->author = User::factory()->create(['roles' => ['tour-author']]);
@@ -177,6 +194,20 @@ describe('widget', function (): void {
 });
 
 describe('pruning', function (): void {
+    it('forgets every completion and event of a user', function (): void {
+        $tour = Tour::factory()->create();
+        TourEvent::factory()->for($tour)->count(2)->create(['user_id' => '7', 'tenant_id' => 'acme']);
+        TourEvent::factory()->for($tour)->create(['user_id' => '8']);
+        TourCompletion::factory()->for($tour)->create(['user_id' => '7']);
+
+        $this->artisan('onboarding:forget-user', ['user' => 7])
+            ->assertSuccessful()
+            ->expectsOutputToContain('Deleted 1 completion(s) and 2 event(s)');
+
+        expect(TourEvent::count())->toBe(1)
+            ->and(TourCompletion::count())->toBe(0);
+    });
+
     it('deletes events older than the retention period', function (): void {
         $tour = Tour::factory()->create();
         TourEvent::factory()->for($tour)->create(['created_at' => now()->subDays(100)]);

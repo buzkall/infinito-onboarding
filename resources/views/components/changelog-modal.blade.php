@@ -10,11 +10,11 @@
 <div
     class="io-changelog"
     data-tour-changelog
-    x-data="{ completed: false }"
+    x-data="{ completed: false, modalId: @js($id) }"
     @if ($autoOpen)
-        x-init="$nextTick(() => $dispatch('open-modal', { id: @js($id) }))"
+        x-init="$nextTick(() => $dispatch('open-modal', { id: modalId }))"
     @endif
-    x-on:modal-closed.window="if ($event.detail.id === @js($id) && ! completed) { $wire.{{ $dismissAction }}() }"
+    x-on:modal-closed.window="if ($event.detail.id === modalId && ! completed) { $wire.{{ $dismissAction }}() }"
 >
     <x-filament::modal
         :id="$id"
@@ -43,8 +43,8 @@
                         @foreach ($tour->steps as $step)
                             <li class="io-changelog-entry">
                                 <h4 class="io-changelog-entry-title">{{ $step->translated('title') }}</h4>
-                                @if (filled($step->translated('body')))
-                                    <div class="io-changelog-entry-body">{!! $step->translated('body') !!}</div>
+                                @if (filled($step->renderedBody()))
+                                    <div class="io-changelog-entry-body">{!! $step->renderedBody() !!}</div>
                                 @endif
                             </li>
                         @endforeach
@@ -55,7 +55,7 @@
 
         <x-slot name="footerActions">
             <x-filament::button
-                x-on:click="completed = true; $wire.{{ $completeAction }}(); $dispatch('close-modal', { id: @js($id) })"
+                x-on:click="completed = true; $wire.{{ $completeAction }}(); $dispatch('close-modal', { id: modalId })"
                 data-changelog-complete
             >
                 {{ __('infinito-onboarding::onboarding.changelog.got_it') }}

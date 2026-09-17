@@ -3,6 +3,7 @@
 use Arzcode\InfinitoOnboarding\Livewire\TourOverlay;
 use Arzcode\InfinitoOnboarding\Models\Tour;
 use Arzcode\InfinitoOnboarding\Models\TourCompletion;
+use Arzcode\InfinitoOnboarding\Models\TourEvent;
 use Arzcode\InfinitoOnboarding\Models\TourStep;
 use Arzcode\InfinitoOnboarding\Tests\Fixtures\User;
 use Filament\Facades\Filament;
@@ -99,6 +100,44 @@ it('scopes completions to the given tenant', function (): void {
     Livewire::test(TourOverlay::class, ['tourId' => $tour->id, 'tenantId' => 'acme'])->call('markCompleted');
 
     expect(TourCompletion::first()->tenant_id)->toBe('acme');
+});
+
+it('resolves tenant-scoped tours for the current tenant', function (): void {
+    $tour = Tour::factory()->forTenant('acme')->create();
+
+    Livewire::test(TourOverlay::class, ['path' => 'admin', 'tenantId' => 'acme'])->assertSet('tourId', $tour->id);
+    Livewire::test(TourOverlay::class, ['path' => 'admin', 'tenantId' => 'globex'])->assertSet('tourId', null);
+});
+
+it('does not resolve a global tour again once completed within a tenant', function (): void {
+    $tour = Tour::factory()->create();
+
+    Livewire::test(TourOverlay::class, ['tourId' => $tour->id, 'tenantId' => 'acme'])->call('markCompleted');
+
+    Livewire::test(TourOverlay::class, ['path' => 'admin', 'tenantId' => 'acme'])->assertSet('tourId', null);
+});
+
+it('strips unsafe markup from step bodies in the payload', function (): void {
+    $tour = Tour::factory()->create();
+    TourStep::factory()->for($tour)->create(['body' => '<p>Hello</p><script>alert(1)</script><img src="x" onerror="alert(1)">']);
+
+    $body = TourOverlay::payloadFor($tour->load('steps'))['steps'][0]['body'];
+
+    expect($body)->toContain('<p>Hello</p>')
+        ->not->toContain('<script')
+        ->not->toContain('onerror');
+});
+
+it('caps the analytics events a user can record per minute', function (): void {
+    config(['infinito-onboarding.analytics.max_events_per_minute' => 2]);
+    $tour = Tour::factory()->create();
+
+    Livewire::test(TourOverlay::class, ['tourId' => $tour->id])
+        ->call('track', 'view')
+        ->call('track', 'view')
+        ->call('track', 'view');
+
+    expect(TourEvent::count())->toBe(2);
 });
 
 it('ignores unauthenticated users', function (): void {

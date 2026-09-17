@@ -9,6 +9,7 @@ use Arzcode\InfinitoOnboarding\Enums\TargetType;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Str;
 
 /**
  * @property int $id
@@ -119,6 +120,17 @@ class TourStep extends Model
     public function advancesOnClick(): bool
     {
         return (bool) ($this->extra['advance_on_click'] ?? false);
+    }
+
+    /**
+     * The translated body with unsafe markup (scripts, event handlers…)
+     * stripped, for rendering as HTML.
+     */
+    public function renderedBody(?string $locale = null): ?string
+    {
+        $body = $this->translated('body', $locale);
+
+        return $body === null ? null : Str::sanitizeHtml($body);
     }
 
     /**

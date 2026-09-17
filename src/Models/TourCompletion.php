@@ -61,12 +61,12 @@ class TourCompletion extends Model
         return filled($tenantId) ? (string) $tenantId : self::NO_TENANT;
     }
 
-    public function setTenantIdAttribute(?string $value): void
+    protected function setTenantIdAttribute(?string $value): void
     {
         $this->attributes['tenant_id'] = static::normalizeTenantId($value);
     }
 
-    public function setUserIdAttribute(string|int $value): void
+    protected function setUserIdAttribute(string|int $value): void
     {
         $this->attributes['user_id'] = (string) $value;
     }
@@ -78,7 +78,7 @@ class TourCompletion extends Model
     }
 
     /** @param  Builder<TourCompletion>  $query */
-    public function scopeForUser(Builder $query, string|int $userId, ?string $tenantId = null): Builder
+    protected function scopeForUser(Builder $query, string|int $userId, ?string $tenantId = null): Builder
     {
         return $query
             ->where('user_id', (string) $userId)
@@ -92,7 +92,7 @@ class TourCompletion extends Model
      */
     public function getDismissedStepIds(): array
     {
-        return array_values(array_map('intval', array_filter((array) ($this->meta['dismissed_steps'] ?? []), 'is_numeric')));
+        return array_values(array_map(intval(...), array_filter((array) ($this->meta['dismissed_steps'] ?? []), is_numeric(...))));
     }
 
     /**

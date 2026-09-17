@@ -42,7 +42,7 @@ class TourAnalyticsWidget extends Widget
 
     protected function getViewData(): array
     {
-        if ($this->record === null) {
+        if (! $this->record instanceof Tour) {
             return ['summary' => null];
         }
 

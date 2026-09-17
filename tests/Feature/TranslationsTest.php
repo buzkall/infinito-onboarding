@@ -11,6 +11,7 @@ use Arzcode\InfinitoOnboarding\Support\TourExporter;
 use Arzcode\InfinitoOnboarding\Support\TourImporter;
 use Arzcode\InfinitoOnboarding\Tests\Fixtures\User;
 use Filament\Facades\Filament;
+use Illuminate\Support\Arr;
 use Livewire\Livewire;
 
 beforeEach(function (): void {
@@ -132,6 +133,13 @@ describe('resource', function (): void {
         expect($tour->steps()->first()->translations)->toBe(['es' => ['title' => 'Exportar', 'body' => '<p>Hola</p>']]);
     });
 
+    it('labels the step actions with the translated model label', function (): void {
+        app()->setLocale('es');
+
+        Livewire::test(StepsRelationManager::class, ['ownerRecord' => Tour::factory()->create(), 'pageClass' => EditTour::class])
+            ->assertTableActionHasLabel('create', 'Crear paso');
+    });
+
     it('renders no translation tabs in single-language apps', function (): void {
         config()->set('infinito-onboarding.locales', []);
 
@@ -172,4 +180,13 @@ describe('builder and interchange', function (): void {
             ->and($imported->steps[0]->translations)->toBe(['es' => ['title' => 'Exportar']])
             ->and(app(TourExporter::class)->toArray($imported))->toEqual($exported);
     });
+});
+
+it('ships every interface string in every bundled language', function (): void {
+    $keys = fn (string $locale): array => array_keys(Arr::dot(require __DIR__ . "/../../resources/lang/{$locale}/onboarding.php"));
+    $english = $keys('en');
+
+    foreach (glob(__DIR__ . '/../../resources/lang/*', GLOB_ONLYDIR) as $directory) {
+        expect($keys(basename($directory)))->toEqualCanonicalizing($english);
+    }
 });

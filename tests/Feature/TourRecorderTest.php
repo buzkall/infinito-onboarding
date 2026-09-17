@@ -76,6 +76,19 @@ describe('Livewire component', function (): void {
         Livewire::test(TourRecorder::class, ['tourId' => $tour->id])->assertForbidden();
     });
 
+    it('keeps the exit url captured on mount across Livewire requests', function (): void {
+        $tour = Tour::factory()->create();
+        $this->actingAs($this->author);
+
+        $component = Livewire::test(TourRecorder::class, ['tourId' => $tour->id]);
+        $exitUrl = $component->get('exitUrl');
+
+        expect($exitUrl)->toBeString();
+
+        $component->call('saveSteps', [['title' => 'x', 'target_type' => 'none']])
+            ->assertSet('exitUrl', $exitUrl);
+    });
+
     it('refuses to save for unauthorised users even with a mounted component', function (): void {
         $tour = Tour::factory()->create();
         $this->actingAs($this->author);

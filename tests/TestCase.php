@@ -28,7 +28,7 @@ class TestCase extends Orchestra
         parent::setUp();
 
         Factory::guessFactoryNamesUsing(
-            fn (string $modelName) => 'Arzcode\\InfinitoOnboarding\\Database\\Factories\\' . class_basename($modelName) . 'Factory'
+            fn (string $modelName): string => 'Arzcode\\InfinitoOnboarding\\Database\\Factories\\' . class_basename($modelName) . 'Factory'
         );
     }
 
@@ -64,6 +64,8 @@ class TestCase extends Orchestra
             'prefix' => '',
             'foreign_key_constraints' => true,
         ]);
+        // The analytics rate limiter needs a cache store; the skeleton defaults to `database`.
+        $app['config']->set('cache.default', 'array');
         $app['config']->set('view.compiled', sys_get_temp_dir() . '/infinito-onboarding-views');
     }
 
@@ -78,6 +80,7 @@ class TestCase extends Orchestra
             'create_onboarding_tour_events_table',
             'add_translations_to_onboarding_tables',
             'add_meta_to_onboarding_tour_completions_table',
+            'add_user_index_to_onboarding_tour_events_table',
         ] as $migration) {
             $migration = include __DIR__ . "/../database/migrations/{$migration}.php.stub";
             $migration->up();

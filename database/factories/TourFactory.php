@@ -37,37 +37,37 @@ class TourFactory extends Factory
 
     public function unpublished(): static
     {
-        return $this->state(fn () => ['published_at' => null]);
+        return $this->state(fn (): array => ['published_at' => null]);
     }
 
     public function inactive(): static
     {
-        return $this->state(fn () => ['is_active' => false]);
+        return $this->state(fn (): array => ['is_active' => false]);
     }
 
     public function changelog(): static
     {
-        return $this->state(fn () => ['mode' => TourMode::Changelog]);
+        return $this->state(fn (): array => ['mode' => TourMode::Changelog]);
     }
 
     public function hints(): static
     {
-        return $this->state(fn () => ['mode' => TourMode::Hint]);
+        return $this->state(fn (): array => ['mode' => TourMode::Hint]);
     }
 
     public function forRoute(string $pattern): static
     {
-        return $this->state(fn () => ['route_pattern' => $pattern]);
+        return $this->state(fn (): array => ['route_pattern' => $pattern]);
     }
 
     public function forTenant(?string $tenantId): static
     {
-        return $this->state(fn () => ['tenant_id' => $tenantId]);
+        return $this->state(fn (): array => ['tenant_id' => $tenantId]);
     }
 
     public function version(string $version): static
     {
-        return $this->state(fn () => ['version' => $version]);
+        return $this->state(fn (): array => ['version' => $version]);
     }
 
     /**
@@ -75,6 +75,6 @@ class TourFactory extends Factory
      */
     public function audience(array $audience): static
     {
-        return $this->state(fn () => ['audience' => $audience]);
+        return $this->state(fn (): array => ['audience' => $audience]);
     }
 }

@@ -27,6 +27,6 @@ class TourCompletionFactory extends Factory
 
     public function dismissed(): static
     {
-        return $this->state(fn () => ['completed_at' => null, 'dismissed_at' => now()]);
+        return $this->state(fn (): array => ['completed_at' => null, 'dismissed_at' => now()]);
     }
 }

@@ -305,8 +305,12 @@ body.io-recorder-picking * {
 .io-score.io-score-amber { background: var(--io-rec-amber); }
 
 .io-recorder-empty { color: var(--io-rec-muted); text-align: center; padding: 0.75rem 0; }
+.io-recorder-picking-hint { color: var(--io-rec-muted); font-size: 0.75rem; margin: -0.25rem 0 0.5rem; }
 
 .io-recorder-editor { display: flex; flex-direction: column; gap: 0.5rem; }
+.io-recorder-toolbar { display: flex; gap: 0.5rem; margin-bottom: 0.75rem; }
+.io-recorder-actions { display: flex; gap: 0.5rem; justify-content: flex-end; }
+.io-score.io-score-inline { margin-top: 0; }
 .io-recorder-editor label { display: block; font-size: 0.75rem; font-weight: 500; color: var(--io-rec-muted); margin-bottom: 0.125rem; }
 .io-recorder-editor input,
 .io-recorder-editor textarea,

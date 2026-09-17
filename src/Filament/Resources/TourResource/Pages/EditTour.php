@@ -31,6 +31,7 @@ class EditTour extends EditRecord
     {
         return [
             TourResource::previewAction(),
+            TourResource::recordStepsAction(),
             TourResource::resetSeenStateAction(),
             DeleteAction::make(),
         ];

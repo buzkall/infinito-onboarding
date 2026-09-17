@@ -13,6 +13,7 @@ class ListTours extends ListRecords
     protected function getHeaderActions(): array
     {
         return [
+            TourResource::recordNewTourAction(),
             CreateAction::make(),
         ];
     }

@@ -25,6 +25,14 @@ Classic onboarding tours run once for *new* users, live in code, and break the m
 
 ```bash
 composer require arzcode/infinito-onboarding
+php artisan infinito-onboarding:install
+```
+
+The installer publishes the migrations, offers to publish the config and run the migrations, publishes the Filament assets and registers the plugin in the `app/Providers/Filament/*PanelProvider.php` files you pick (asking whether to add the resource and the "What's new" button). It adds `->authorize(fn (): bool => app()->isLocal())` as a placeholder: **replace it with your own check**, otherwise nobody can manage, preview or record tours outside local environments.
+
+### Manual installation
+
+```bash
 php artisan vendor:publish --tag="infinito-onboarding-migrations"
 php artisan migrate
 php artisan filament:assets
@@ -57,6 +65,14 @@ public function panel(Panel $panel): Panel
 ```
 
 Everything is opt-in: with only `->plugin(InfinitoOnboardingPlugin::make())` the overlay runs and nothing else is registered.
+
+### Uninstalling
+
+```bash
+php artisan infinito-onboarding:uninstall
+```
+
+Removes the plugin from your panel providers and the published assets, then asks before dropping the onboarding tables, deleting the published migrations, config, translations and views, and running `composer remove arzcode/infinito-onboarding`.
 
 ### Plugin options
 
@@ -125,6 +141,9 @@ Table actions:
 
 - **Preview**: opens the tour's route with `?onboarding-preview=<key>`, which forces the tour for you regardless of seen-state (and never records a completion).
 - **Reset seen-state**: deletes the tour's completions so every user sees it again.
+- **Record steps** (also on the edit page and the Steps table): opens record mode on the tour's page. If the route pattern matches several pages (`admin/orders/*/edit`, or a list of patterns), it asks which page to record on.
+
+The list page also has **Record a tour**: enter a name, key and page, and it creates an unpublished draft and opens record mode on it, so you never have to type the `?onboarding-record` URL yourself.
 
 ### 2. Record mode (click, don't write selectors)
 
@@ -140,11 +159,13 @@ If the key is new, an unpublished draft tour scoped to that path is created. A f
 2. Write the **title**, **body** and choose a **placement**; add the step.
 3. Repeat, drag to reorder, **Preview** runs the tour immediately, **Save** persists through Livewire. **Esc** cancels picking / exits.
 
+You do not need to add ids to your pages: the recorder identifies the element you clicked from what Filament and Livewire already render. Press **↑** while hovering to select the parent element (the whole card instead of its text) and **↓** to go back.
+
 Every captured target is scored:
 
-- 🟢 **green**: a `data-tour` attribute or a stable `id` was found.
-- 🟠 **amber**: a `wire:key` ancestor was used, usually stable within a page.
-- 🔴 **red**: a generated CSS path, or a selector matching more than one element. The panel tells you which Filament component to add `->tourTarget('key')` to.
+- 🟢 **green**: the element has a `data-tour` attribute, a stable `id`, or is a Livewire component such as a widget (`[wire:name="App\Filament\Widgets\NextPerformance"]`).
+- 🟠 **amber**: identified by a `wire:key`, `wire:click`, link URL or input name, or by a short path (up to 3 levels) inside one of the above, e.g. the second stat card of a stats widget.
+- 🔴 **red**: a long generated CSS path, or a selector matching more than one element. The panel tells you which Filament component to add `->tourTarget('key')` to.
 
 Publish the tour from the resource (or with the builder) when you are happy.
 
@@ -236,7 +257,9 @@ Read content through `$step->translated('title')` in your own code.
 Every tour records events (views, highlighted steps, completions, dismissals and *target not found* skips) per user, tenant and version. The tour's edit page shows a widget with views, unique viewers, completion rate, a per-step **reached / drop-off** table and the list of **missing selectors** with how often they failed, so you know which component still needs a `->tourTarget()`.
 
 - Disable with `'analytics' => ['enabled' => false]` in the config. Preview and record mode never record events.
+- Flood protection: each user can record at most `analytics.max_events_per_minute` events per tour (default 60, `null` disables it).
 - Retention: `php artisan onboarding:prune-events` deletes events older than `analytics.prune_after_days` (default 90). Schedule it daily.
+- Erasure: `php artisan onboarding:forget-user {id}` (or `app(Support\UserData::class)->forget($id)` from your user deletion flow) deletes a user's completions and events. User ids have no foreign key, so deleting a user does not cascade.
 - Query the data yourself through `Arzcode\InfinitoOnboarding\Models\TourEvent` or `Support\TourAnalytics::summary($tour)`.
 
 ## Changelog mode
@@ -291,6 +314,8 @@ The user must belong to at least one of the listed segments; unknown segment nam
 
 Completions are stored per tenant (`Filament::getTenant()`), so a user sees a tour once per tenant. A tour with a `tenant_id` only shows in that tenant; tours without one show everywhere. User ids are stored as strings, so UUID and integer keys both work.
 
+Inside a tenant, authors only manage that tenant's own tours: the resource lists them, new and edited tours are saved under the current tenant, and record mode refuses keys belonging to another tenant. Tours for every tenant (no `tenant_id`) are managed from a panel without tenancy, in code (`Tour::define()`) or through `onboarding:import`.
+
 ### Authorisation
 
 - The **overlay** shows to any authenticated panel user that the resolver selects.
@@ -331,6 +356,7 @@ See [CHANGELOG.md](CHANGELOG.md). Migrations are published, so run `php artisan 
 composer test          # Pest
 composer analyse       # PHPStan (level 5)
 composer format        # Pint
+composer refactor      # Rector (composer refactor:check for a dry run)
 npm run build          # rebuild resources/dist (committed; consumers do not need npm)
 npm run test:browser   # optional Playwright smoke tests of the bundle (see tests/browser)
 ```
@@ -347,7 +373,7 @@ From `v1.0.0` the package follows [semantic versioning](https://semver.org/). Th
 | Resolver rule | The seven conditions listed above and the audience JSON keys `roles`, `permissions`, `users`, `segments` |
 | Code-first | `Tour::define()` and every `TourDefinition` method documented in this README |
 | Interchange | The JSON format (`format: 1`) written by `onboarding:export` and read by `onboarding:import` |
-| Commands | `onboarding:export`, `onboarding:import`, `onboarding:prune-events` and their documented options |
+| Commands | `infinito-onboarding:install`, `infinito-onboarding:uninstall`, `onboarding:export`, `onboarding:import`, `onboarding:prune-events`, `onboarding:forget-user` and their documented options |
 | Query flags | `?onboarding-preview`, `?onboarding-record` (names configurable) |
 | Browser events | `infinito-onboarding:step`, `completed`, `dismissed`, `hint-dismissed` and their `detail` keys |
 | Config keys | Everything in `config/infinito-onboarding.php` |

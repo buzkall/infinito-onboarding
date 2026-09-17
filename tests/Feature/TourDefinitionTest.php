@@ -6,6 +6,7 @@ use Arzcode\InfinitoOnboarding\Enums\TourMode;
 use Arzcode\InfinitoOnboarding\Models\Tour;
 use Arzcode\InfinitoOnboarding\Models\TourCompletion;
 use Arzcode\InfinitoOnboarding\Models\TourStep;
+use Arzcode\InfinitoOnboarding\Support\TourDefinition;
 
 it('creates a tour with steps from a fluent definition', function (): void {
     $tour = Tour::define('q3-2026')
@@ -39,7 +40,7 @@ it('creates a tour with steps from a fluent definition', function (): void {
 });
 
 it('is idempotent: saving the same definition twice changes nothing', function (): void {
-    $define = fn () => Tour::define('welcome')->route('admin')->step('a', 'A')->step('b', 'B')->publish('2026-01-01 10:00:00');
+    $define = fn (): TourDefinition => Tour::define('welcome')->route('admin')->step('a', 'A')->step('b', 'B')->publish('2026-01-01 10:00:00');
 
     $first = $define()->save();
     $second = $define()->save();

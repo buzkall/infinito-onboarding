@@ -18,7 +18,7 @@ class PanelRoutes
      */
     public static function patternsFor(?Panel $panel): array
     {
-        if ($panel === null) {
+        if (! $panel instanceof Panel) {
             return [];
         }
 

@@ -5,6 +5,7 @@ use Arzcode\InfinitoOnboarding\Models\Tour;
 use Arzcode\InfinitoOnboarding\Models\TourCompletion;
 use Arzcode\InfinitoOnboarding\Support\TourResolver;
 use Arzcode\InfinitoOnboarding\Tests\Fixtures\User;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 
 beforeEach(function (): void {
@@ -22,6 +23,38 @@ it('resolves an eligible tour', function (): void {
 
 it('returns null when nothing matches', function (): void {
     expect($this->resolver->resolveFor($this->user, 'admin'))->toBeNull();
+});
+
+it('matches a comma-separated route list without wildcards', function (): void {
+    $tour = Tour::factory()->forRoute('admin/orders,admin/users')->create();
+
+    expect($this->resolver->resolveFor($this->user, 'admin/users')?->id)->toBe($tour->id)
+        ->and($this->resolver->resolveFor($this->user, 'admin/products'))->toBeNull();
+});
+
+it('matches a route pattern stored with a leading slash', function (): void {
+    $tour = Tour::factory()->forRoute('/admin/orders')->create();
+
+    expect($this->resolver->resolveFor($this->user, 'admin/orders')?->id)->toBe($tour->id);
+});
+
+it('excludes another tenant\'s tour when previewing by key', function (): void {
+    Tour::factory()->forTenant('acme')->create(['key' => 'acme-tour']);
+
+    expect($this->resolver->resolveForPreview($this->user, 'admin', 'globex', 'acme-tour'))->toBeNull()
+        ->and($this->resolver->resolveForPreview($this->user, 'admin', 'acme', 'acme-tour'))->not->toBeNull();
+});
+
+it('checks the seen-state of every candidate in a single query', function (): void {
+    Tour::factory()->count(5)->sequence(fn ($sequence): array => ['key' => 'tour-' . $sequence->index])->create();
+
+    DB::enableQueryLog();
+    $this->resolver->candidatesFor($this->user, 'admin');
+
+    $completionQueries = collect(DB::getQueryLog())
+        ->filter(fn (array $query): bool => str_contains($query['query'], 'onboarding_tour_completions'));
+
+    expect($completionQueries)->toHaveCount(1);
 });
 
 describe('exclusions', function (): void {
@@ -178,7 +211,7 @@ describe('audience gate', function (): void {
     it('excludes users failing every required permission', function (): void {
         Tour::factory()->audience(['permissions' => ['export orders']])->create();
 
-        Gate::define('export orders', fn (User $user) => false);
+        Gate::define('export orders', fn (User $user): false => false);
 
         expect($this->resolver->resolveFor($this->user, 'admin'))->toBeNull();
     });
@@ -186,7 +219,7 @@ describe('audience gate', function (): void {
     it('includes users passing a required permission through the Gate', function (): void {
         Tour::factory()->audience(['permissions' => ['export orders', 'delete orders']])->create();
 
-        Gate::define('delete orders', fn (User $user) => true);
+        Gate::define('delete orders', fn (User $user): true => true);
 
         expect($this->resolver->resolveFor($this->user, 'admin'))->not->toBeNull();
     });
@@ -208,7 +241,7 @@ describe('audience gate', function (): void {
     it('requires every present criterion to pass', function (): void {
         Tour::factory()->audience(['roles' => ['editor'], 'permissions' => ['export orders']])->create();
         $this->user->update(['roles' => ['editor']]);
-        Gate::define('export orders', fn (User $user) => false);
+        Gate::define('export orders', fn (User $user): false => false);
 
         expect($this->resolver->resolveFor($this->user, 'admin'))->toBeNull();
     });

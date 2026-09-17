@@ -8,7 +8,7 @@ use Arzcode\InfinitoOnboarding\Enums\TourMode;
 use Arzcode\InfinitoOnboarding\Models\Tour;
 use Arzcode\InfinitoOnboarding\Models\TourStep;
 use DateTimeInterface;
-use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
@@ -77,7 +77,7 @@ class TourDefinition
 
         foreach (['published_at', 'starts_at', 'ends_at'] as $date) {
             if (array_key_exists($date, $data)) {
-                $definition->attributes[$date] = filled($data[$date]) ? Carbon::parse($data[$date]) : null;
+                $definition->attributes[$date] = filled($data[$date]) ? Date::parse($data[$date]) : null;
             }
         }
 
@@ -156,7 +156,7 @@ class TourDefinition
 
     public function publish(DateTimeInterface|string|null $at = null): static
     {
-        $this->attributes['published_at'] = $at === null ? now() : Carbon::parse($at);
+        $this->attributes['published_at'] = $at === null ? now() : Date::parse($at);
 
         return $this;
     }
@@ -170,8 +170,8 @@ class TourDefinition
 
     public function between(DateTimeInterface|string|null $startsAt, DateTimeInterface|string|null $endsAt): static
     {
-        $this->attributes['starts_at'] = $startsAt === null ? null : Carbon::parse($startsAt);
-        $this->attributes['ends_at'] = $endsAt === null ? null : Carbon::parse($endsAt);
+        $this->attributes['starts_at'] = $startsAt === null ? null : Date::parse($startsAt);
+        $this->attributes['ends_at'] = $endsAt === null ? null : Date::parse($endsAt);
 
         return $this;
     }
@@ -201,7 +201,7 @@ class TourDefinition
      */
     public function users(array|string|int $users): static
     {
-        $this->attributes['audience'] = [...($this->attributes['audience'] ?? []), 'users' => array_map('strval', (array) $users)];
+        $this->attributes['audience'] = [...($this->attributes['audience'] ?? []), 'users' => array_map(strval(...), (array) $users)];
 
         return $this;
     }

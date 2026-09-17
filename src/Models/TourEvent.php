@@ -58,12 +58,12 @@ class TourEvent extends Model
         return TourEventFactory::new();
     }
 
-    public function setTenantIdAttribute(?string $value): void
+    protected function setTenantIdAttribute(?string $value): void
     {
         $this->attributes['tenant_id'] = TourCompletion::normalizeTenantId($value);
     }
 
-    public function setUserIdAttribute(string|int $value): void
+    protected function setUserIdAttribute(string|int $value): void
     {
         $this->attributes['user_id'] = (string) $value;
     }
@@ -81,13 +81,13 @@ class TourEvent extends Model
     }
 
     /** @param  Builder<TourEvent>  $query */
-    public function scopeOfType(Builder $query, TourEventType $type): Builder
+    protected function scopeOfType(Builder $query, TourEventType $type): Builder
     {
         return $query->where('event', $type);
     }
 
     /** @param  Builder<TourEvent>  $query */
-    public function scopeForVersion(Builder $query, string $version): Builder
+    protected function scopeForVersion(Builder $query, string $version): Builder
     {
         return $query->where('version', $version);
     }

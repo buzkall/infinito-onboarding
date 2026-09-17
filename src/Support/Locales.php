@@ -17,7 +17,7 @@ class Locales
     public static function all(): array
     {
         $locales = config('infinito-onboarding.locales', []);
-        $locales = is_array($locales) ? array_values(array_filter(array_map('strval', $locales))) : [];
+        $locales = is_array($locales) ? array_values(array_filter(array_map(strval(...), $locales))) : [];
 
         return $locales === [] ? [static::appLocale()] : array_values(array_unique($locales));
     }

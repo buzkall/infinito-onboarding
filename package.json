@@ -8,7 +8,8 @@
         "test:browser": "node tests/browser/tour.smoke.js && node tests/browser/recorder.smoke.js && node tests/browser/preconditions.smoke.js && node tests/browser/hints.smoke.js"
     },
     "devDependencies": {
-        "esbuild": "^0.28.2"
+        "esbuild": "^0.28.2",
+        "playwright": "^1.63.0"
     },
     "dependencies": {
         "driver.js": "^1.8.0"

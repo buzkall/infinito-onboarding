@@ -6,6 +6,7 @@ use Arzcode\InfinitoOnboarding\Filament\Resources\TourResource\RelationManagers\
 use Arzcode\InfinitoOnboarding\Livewire\TourRecorder;
 use Arzcode\InfinitoOnboarding\Models\Tour;
 use Arzcode\InfinitoOnboarding\Models\TourStep;
+use Arzcode\InfinitoOnboarding\Support\TourDefinition;
 use Arzcode\InfinitoOnboarding\Tests\Fixtures\User;
 use Filament\Facades\Filament;
 use Livewire\Livewire;
@@ -62,7 +63,7 @@ describe('builder', function (): void {
     });
 
     it('refuses step options before any step exists', function (): void {
-        expect(fn () => Tour::define('x')->clickFirst('a'))->toThrow(LogicException::class);
+        expect(fn (): TourDefinition => Tour::define('x')->clickFirst('a'))->toThrow(LogicException::class);
     });
 });
 

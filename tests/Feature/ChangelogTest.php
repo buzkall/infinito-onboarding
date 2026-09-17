@@ -16,6 +16,17 @@ beforeEach(function (): void {
 });
 
 describe('auto-show', function (): void {
+    it('strips unsafe markup from release-note bodies', function (): void {
+        $tour = Tour::factory()->changelog()->create();
+        TourStep::factory()->for($tour)->untargeted()->create(['body' => '<p>Safe</p><img src="x" onerror="alert(1)">']);
+
+        $this->actingAs($this->user);
+
+        Livewire::test(TourOverlay::class, ['tourId' => $tour->id])
+            ->assertSeeHtml('<p>Safe</p>')
+            ->assertDontSeeHtml('onerror');
+    });
+
     it('renders a changelog tour as a modal with release-note entries instead of Driver.js', function (): void {
         $tour = Tour::factory()->changelog()->create(['key' => 'q3', 'name' => 'Q3 release', 'version' => '3.0']);
         TourStep::factory()->for($tour)->untargeted()->order(1)->create(['title' => 'Faster exports', 'body' => '<p>Exports are now async.</p>']);
@@ -39,6 +50,8 @@ describe('auto-show', function (): void {
         Livewire::test(TourOverlay::class, ['tourId' => $tour->id])
             ->assertSeeHtml('data-tour-changelog')
             ->assertSeeHtml('data-changelog-complete')
+            ->assertSeeHtml("\$dispatch('close-modal', { id: modalId })")
+            ->assertDontSeeHtml('@js(')
             ->call('markCompleted');
 
         expect(TourCompletion::count())->toBe(1);

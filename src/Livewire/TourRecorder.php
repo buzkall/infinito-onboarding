@@ -28,14 +28,20 @@ class TourRecorder extends Component
     #[Locked]
     public int $tourId;
 
+    /** Captured on mount: later Livewire requests hit /livewire/update. */
+    #[Locked]
+    public ?string $exitUrl = null;
+
     public function mount(): void
     {
         $this->authorizeAccess();
+
+        $this->exitUrl ??= static::exitUrl(request());
     }
 
     public function getTour(): Tour
     {
-        return Tour::query()->with('steps')->findOrFail($this->tourId);
+        return Tour::query()->with('steps')->manageableIn(TourOverlay::currentTenantId())->findOrFail($this->tourId);
     }
 
     /**
@@ -112,7 +118,7 @@ class TourRecorder extends Component
             'tourPayload' => TourOverlay::payloadFor($tour)['tour'],
             'steps' => $tour->steps->map(fn (TourStep $step): array => $this->stepPayload($step))->values()->all(),
             'labels' => static::labels(),
-            'exitUrl' => static::exitUrl(request()),
+            'exitUrl' => $this->exitUrl,
             'scriptSrc' => FilamentAsset::getScriptSrc('infinito-onboarding-recorder', InfinitoOnboardingServiceProvider::$assetPackage),
         ]);
     }
@@ -145,15 +151,25 @@ class TourRecorder extends Component
             return null;
         }
 
-        return Tour::query()->firstOrCreate(
+        $tenantId = TourOverlay::currentTenantId();
+
+        $tour = Tour::query()->firstOrCreate(
             ['key' => $key],
             [
                 'name' => Str::headline($key),
                 'route_pattern' => trim($request->path(), '/'),
                 'published_at' => null,
                 'is_active' => true,
+                'tenant_id' => $tenantId,
             ],
         );
+
+        // Keys are unique across tenants: never hand another tenant's tour over.
+        if ($tenantId !== null && $tour->tenant_id !== $tenantId) {
+            return null;
+        }
+
+        return $tour;
     }
 
     public static function recordParameter(): string
@@ -178,6 +194,7 @@ class TourRecorder extends Component
             'title' => __('infinito-onboarding::onboarding.recorder.title'),
             'pick' => __('infinito-onboarding::onboarding.recorder.pick'),
             'picking' => __('infinito-onboarding::onboarding.recorder.picking'),
+            'picking_hint' => __('infinito-onboarding::onboarding.recorder.picking_hint'),
             'centred' => __('infinito-onboarding::onboarding.recorder.centred'),
             'empty' => __('infinito-onboarding::onboarding.recorder.empty'),
             'preview' => __('infinito-onboarding::onboarding.recorder.preview'),
@@ -186,6 +203,7 @@ class TourRecorder extends Component
             'saved' => __('infinito-onboarding::onboarding.recorder.saved'),
             'save_failed' => __('infinito-onboarding::onboarding.recorder.save_failed'),
             'exit' => __('infinito-onboarding::onboarding.recorder.exit'),
+            'minimise' => __('infinito-onboarding::onboarding.recorder.minimise'),
             'confirm_exit' => __('infinito-onboarding::onboarding.recorder.confirm_exit'),
             'step_title' => __('infinito-onboarding::onboarding.recorder.step_title'),
             'step_body' => __('infinito-onboarding::onboarding.recorder.step_body'),

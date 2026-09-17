@@ -17,9 +17,51 @@ const path = require('path')
       wireKey: c(document.querySelector('.inner')),
       deep: c(document.querySelectorAll('.deep')[1]),
       generated: c(document.querySelector('.generated')),
+      widget: c(document.querySelector('.widget-content')),
+      stat: c(document.querySelector('.stat-b')),
+      nav: c(document.querySelector('.nav-posts')),
+      fieldInput: c(document.querySelector('.name-input')),
     }
   })
   console.log('scoring', JSON.stringify(scoring, null, 1))
+
+  const expectations = [
+    ['dataTour', 'data-tour', 'green'],
+    ['id', 'id', 'green'],
+    ['wireKey', 'inside-wire:key', 'amber'],
+    ['deep', 'inside-id', 'red'],
+    ['widget', 'livewire-component', 'green'],
+    ['stat', 'inside-livewire-component', 'amber'],
+    ['nav', 'href', 'amber'],
+    ['fieldInput', 'data-tour', 'green'],
+  ]
+  const failures = expectations
+    .filter(([name, strategy, score]) => scoring[name]?.strategy !== strategy || scoring[name]?.score !== score)
+    .map(([name, strategy, score]) => `${name}: expected ${strategy}/${score}, got ${scoring[name]?.strategy}/${scoring[name]?.score} (${scoring[name]?.selector})`)
+  if (scoring.widget.selector.includes('fi-main-content')) failures.push('widget: resolved to the <main> container')
+  for (const [name, result] of Object.entries(scoring)) {
+    if (result.selector.includes('lw-') || result.selector.includes('abcdefghijABCDEFGHIJ')) failures.push(`${name}: uses a generated Livewire key or id (${result.selector})`)
+  }
+
+  // ArrowUp climbs from the stat card to its parent, ArrowDown comes back.
+  await page.click('#pick')
+  const stat = await page.locator('.stat-b').boundingBox()
+  await page.mouse.move(stat.x + 3, stat.y + 3)
+  await page.waitForTimeout(50)
+  const hoverLabel = () => page.evaluate(() => document.querySelector('.io-recorder-hover-label').textContent)
+  const onStat = await hoverLabel()
+  await page.keyboard.press('ArrowUp')
+  await page.keyboard.press('ArrowUp')
+  const onWidget = await hoverLabel()
+  await page.keyboard.press('ArrowDown')
+  const onParent = await hoverLabel()
+  await page.mouse.move(stat.x + 4, stat.y + 3)
+  const afterJitter = await hoverLabel()
+  console.log('climb', JSON.stringify({ onStat, onWidget, onParent, afterJitter }))
+  if (onWidget !== '[wire\\:name="App\\\\Filament\\\\Widgets\\\\StatsOverview"]') failures.push(`climb: expected the widget root, got ${onWidget}`)
+  if (onParent === onWidget || onParent === onStat) failures.push(`climb: ArrowDown should select the middle element, got ${onParent}`)
+  if (afterJitter !== onParent) failures.push('climb: a small mouse move reset the selection')
+  await page.keyboard.press('Escape')
 
   // UI flow: pick -> hover -> click -> fill -> add
   await page.click('#pick')
@@ -60,4 +102,8 @@ const path = require('path')
   console.log('after', JSON.stringify(after))
   console.log('errors', JSON.stringify(errors))
   await browser.close()
+  if (failures.length || errors.length) {
+    console.error('FAILED\n' + [...failures, ...errors].join('\n'))
+    process.exit(1)
+  }
 })().catch((e) => { console.error('FAILED', e.message); process.exit(1) })

@@ -61,6 +61,13 @@ export function placementFor(step) {
     return PLACEMENTS[step?.placement] ?? {}
 }
 
+/**
+ * Titles are plain text, but Driver.js renders popover titles as HTML.
+ */
+export function escapeHtml(value) {
+    return String(value ?? '').replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' })[char])
+}
+
 export function dispatch(name, detail = {}) {
     window.dispatchEvent(new CustomEvent(`${EVENT_PREFIX}:${name}`, { detail, bubbles: true }))
 }
@@ -350,7 +357,7 @@ export function createTourRunner(config = {}) {
     const toDriverStep = ({ step, selector }) => {
         const driverStep = {
             popover: {
-                title: step.title ?? '',
+                title: escapeHtml(step.title),
                 description: step.body ?? '',
                 ...placementFor(step),
             },
@@ -693,7 +700,7 @@ export function infinitoOnboardingHints(config = {}) {
         instance.highlight({
             element,
             popover: {
-                title: beacon.step.title ?? '',
+                title: escapeHtml(beacon.step.title),
                 description: beacon.step.body ?? '',
                 ...placementFor(beacon.step),
             },

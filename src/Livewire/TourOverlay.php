@@ -7,6 +7,7 @@ use Arzcode\InfinitoOnboarding\InfinitoOnboardingPlugin;
 use Arzcode\InfinitoOnboarding\Models\Tour;
 use Arzcode\InfinitoOnboarding\Models\TourCompletion;
 use Arzcode\InfinitoOnboarding\Models\TourEvent;
+use Arzcode\InfinitoOnboarding\Models\TourStep;
 use Arzcode\InfinitoOnboarding\Support\TourAnalytics;
 use Arzcode\InfinitoOnboarding\Support\TourResolver;
 use Filament\Facades\Filament;
@@ -14,6 +15,7 @@ use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\RateLimiter;
 use Livewire\Attributes\Locked;
 use Livewire\Component;
 
@@ -45,7 +47,7 @@ class TourOverlay extends Component
 
         if ($this->tourId === null) {
             $plugin = static::plugin();
-            $this->preview = $plugin !== null && static::isPreviewRequest($plugin, request());
+            $this->preview = $plugin instanceof InfinitoOnboardingPlugin && static::isPreviewRequest($plugin, request());
             $this->tourId = static::resolveTour($this->user(), $this->path, $this->tenantId, $this->preview, static::previewKey(request()))?->id;
         }
     }
@@ -80,11 +82,11 @@ class TourOverlay extends Component
         $tour = $this->getTour();
         $user = $this->user();
 
-        if ($tour === null || $user === null || $this->preview || ! $tour->isHint()) {
+        if (! $tour instanceof Tour || ! $user instanceof Authenticatable || $this->preview || ! $tour->isHint()) {
             return;
         }
 
-        if (! $tour->steps->contains('id', $stepId)) {
+        if ($tour->steps->doesntContain('id', $stepId)) {
             return;
         }
 
@@ -153,13 +155,17 @@ class TourOverlay extends Component
         $tour = $this->getTour();
         $user = $this->user();
 
-        if ($tour === null || $user === null) {
+        if (! $tour instanceof Tour || ! $user instanceof Authenticatable) {
+            return;
+        }
+
+        if (static::exceedsEventRateLimit($user, $tour)) {
             return;
         }
 
         $stepId = isset($meta['step_id']) && is_numeric($meta['step_id']) ? (int) $meta['step_id'] : null;
 
-        if ($stepId !== null && ! $tour->steps->contains('id', $stepId)) {
+        if ($stepId !== null && $tour->steps->doesntContain('id', $stepId)) {
             $stepId = null;
         }
 
@@ -181,12 +187,35 @@ class TourOverlay extends Component
         ]);
     }
 
+    /**
+     * Events are reported from the browser, so cap how many one user can
+     * store per tour to keep the events table from being flooded.
+     */
+    protected static function exceedsEventRateLimit(Authenticatable $user, Tour $tour): bool
+    {
+        $max = config('infinito-onboarding.analytics.max_events_per_minute', 60);
+
+        if (! is_numeric($max) || (int) $max <= 0) {
+            return false;
+        }
+
+        $key = 'infinito-onboarding:events:' . $user->getAuthIdentifier() . ':' . $tour->id;
+
+        if (RateLimiter::tooManyAttempts($key, (int) $max)) {
+            return true;
+        }
+
+        RateLimiter::hit($key, 60);
+
+        return false;
+    }
+
     protected function persist(bool $completed): void
     {
         $tour = $this->getTour();
         $user = $this->user();
 
-        if ($tour === null || $user === null || $this->preview) {
+        if (! $tour instanceof Tour || ! $user instanceof Authenticatable || $this->preview) {
             return;
         }
 
@@ -215,9 +244,9 @@ class TourOverlay extends Component
         /** @var view-string $view */
         $view = 'infinito-onboarding::livewire.tour-overlay';
 
-        $payload = $tour ? static::payloadFor($tour) : null;
+        $payload = $tour instanceof Tour ? static::payloadFor($tour) : null;
 
-        if ($tour?->isHint() && $payload !== null && ($user = $this->user()) !== null) {
+        if ($tour?->isHint() && $payload !== null && ($user = $this->user()) instanceof Authenticatable) {
             $payload['dismissed_steps'] = $tour->completionFor($user->getAuthIdentifier(), $this->tenantId)?->getDismissedStepIds() ?? [];
         }
 
@@ -258,7 +287,7 @@ class TourOverlay extends Component
         bool $preview = false,
         ?string $previewKey = null,
     ): ?Tour {
-        if ($user === null) {
+        if (! $user instanceof Authenticatable) {
             return null;
         }
 
@@ -269,7 +298,7 @@ class TourOverlay extends Component
             return $resolver->resolveForPreview($user, $path, $tenantId, $previewKey);
         }
 
-        return $resolver->resolveFor($user, $path);
+        return $resolver->resolveFor($user, $path, $tenantId);
     }
 
     public static function isPreviewRequest(InfinitoOnboardingPlugin $plugin, Request $request): bool
@@ -319,7 +348,10 @@ class TourOverlay extends Component
                 'mode' => $tour->mode->value,
                 'version' => $tour->version,
             ],
-            'steps' => $tour->steps->map->toPayload()->values()->all(),
+            'steps' => $tour->steps
+                ->map(fn (TourStep $step): array => [...$step->toPayload(), 'body' => $step->renderedBody()])
+                ->values()
+                ->all(),
         ];
     }
 

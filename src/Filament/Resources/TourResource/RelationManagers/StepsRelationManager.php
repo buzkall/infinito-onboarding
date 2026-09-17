@@ -4,6 +4,7 @@ namespace Arzcode\InfinitoOnboarding\Filament\Resources\TourResource\RelationMan
 
 use Arzcode\InfinitoOnboarding\Enums\Placement;
 use Arzcode\InfinitoOnboarding\Enums\TargetType;
+use Arzcode\InfinitoOnboarding\Filament\Resources\TourResource;
 use Arzcode\InfinitoOnboarding\Filament\Support\TranslationTabs;
 use Arzcode\InfinitoOnboarding\Models\TourStep;
 use Filament\Actions\BulkActionGroup;
@@ -31,6 +32,16 @@ class StepsRelationManager extends RelationManager
     protected static ?string $recordTitleAttribute = 'title';
 
     public static function getTitle(Model $ownerRecord, string $pageClass): string
+    {
+        return __('infinito-onboarding::onboarding.resource.steps.title');
+    }
+
+    protected static function getModelLabel(): ?string
+    {
+        return __('infinito-onboarding::onboarding.resource.steps.label');
+    }
+
+    protected static function getPluralModelLabel(): ?string
     {
         return __('infinito-onboarding::onboarding.resource.steps.title');
     }
@@ -90,7 +101,7 @@ class StepsRelationManager extends RelationManager
                 Section::make(__('infinito-onboarding::onboarding.resource.steps.fields.before'))
                     ->description(__('infinito-onboarding::onboarding.resource.steps.fields.before_help'))
                     ->collapsible()
-                    ->collapsed(fn (?TourStep $record): bool => $record === null || $record->getBeforeActions() === [])
+                    ->collapsed(fn (?TourStep $record): bool => ! $record instanceof TourStep || $record->getBeforeActions() === [])
                     ->columnSpanFull()
                     ->schema([
                         Repeater::make('extra.before')
@@ -177,6 +188,7 @@ class StepsRelationManager extends RelationManager
                     ->color('gray'),
             ])
             ->headerActions([
+                TourResource::recordStepsAction(),
                 CreateAction::make()
                     ->mutateDataUsing(function (array $data): array {
                         $data['order'] ??= ((int) $this->getRelationship()->max('order')) + 1;

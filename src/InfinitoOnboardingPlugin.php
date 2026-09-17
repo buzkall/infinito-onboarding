@@ -6,6 +6,7 @@ use Arzcode\InfinitoOnboarding\Filament\Resources\TourResource;
 use Arzcode\InfinitoOnboarding\Livewire\ChangelogTrigger;
 use Arzcode\InfinitoOnboarding\Livewire\TourOverlay;
 use Arzcode\InfinitoOnboarding\Livewire\TourRecorder;
+use Arzcode\InfinitoOnboarding\Models\Tour;
 use Arzcode\InfinitoOnboarding\Support\Segments;
 use Closure;
 use Filament\Contracts\Plugin;
@@ -219,7 +220,7 @@ class InfinitoOnboardingPlugin implements Plugin
     {
         $user ??= Filament::auth()->user();
 
-        if ($user === null || $this->authorizeUsing === null) {
+        if ($user === null || ! $this->authorizeUsing instanceof Closure) {
             return false;
         }
 
@@ -274,7 +275,7 @@ class InfinitoOnboardingPlugin implements Plugin
     {
         $tour = TourRecorder::resolveTourForRequest(request());
 
-        if ($tour === null) {
+        if (! $tour instanceof Tour) {
             return '';
         }
 
@@ -329,7 +330,7 @@ class InfinitoOnboardingPlugin implements Plugin
 
         $tour = TourOverlay::resolveTourForRequest($this, request());
 
-        if ($tour === null) {
+        if (! $tour instanceof Tour) {
             return '';
         }
 

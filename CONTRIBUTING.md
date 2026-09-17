@@ -18,6 +18,7 @@ Every pull request must keep these green:
 ```bash
 vendor/bin/pest            # tests
 vendor/bin/pint --test     # code style
+vendor/bin/rector process --dry-run # automated refactors (run without --dry-run, then Pint, to apply)
 vendor/bin/phpstan analyse # static analysis, level 5
 ```
 

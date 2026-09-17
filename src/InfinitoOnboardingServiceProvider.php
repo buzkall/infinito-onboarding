@@ -3,12 +3,15 @@
 namespace Arzcode\InfinitoOnboarding;
 
 use Arzcode\InfinitoOnboarding\Commands\ExportToursCommand;
+use Arzcode\InfinitoOnboarding\Commands\ForgetUserCommand;
 use Arzcode\InfinitoOnboarding\Commands\ImportToursCommand;
 use Arzcode\InfinitoOnboarding\Commands\PruneEventsCommand;
+use Arzcode\InfinitoOnboarding\Commands\UninstallCommand;
 use Arzcode\InfinitoOnboarding\Livewire\ChangelogTrigger;
 use Arzcode\InfinitoOnboarding\Livewire\TourOverlay;
 use Arzcode\InfinitoOnboarding\Livewire\TourRecorder;
 use Arzcode\InfinitoOnboarding\Macros\TourTargetMacro;
+use Arzcode\InfinitoOnboarding\Support\Installer;
 use Arzcode\InfinitoOnboarding\Support\Segments;
 use Filament\Support\Assets\Asset;
 use Filament\Support\Assets\Css;
@@ -16,8 +19,11 @@ use Filament\Support\Assets\Js;
 use Filament\Support\Facades\FilamentAsset;
 use Livewire\Component;
 use Livewire\Livewire;
+use Spatie\LaravelPackageTools\Commands\InstallCommand;
 use Spatie\LaravelPackageTools\Package;
 use Spatie\LaravelPackageTools\PackageServiceProvider;
+
+use function Laravel\Prompts\intro;
 
 class InfinitoOnboardingServiceProvider extends PackageServiceProvider
 {
@@ -34,8 +40,15 @@ class InfinitoOnboardingServiceProvider extends PackageServiceProvider
             ->hasConfigFile()
             ->hasViews(static::$viewNamespace)
             ->hasTranslations()
-            ->hasMigrations($this->getMigrations())
-            ->hasCommands($this->getCommands());
+            ->hasMigrations(static::migrationNames())
+            ->hasCommands($this->getCommands())
+            ->hasInstallCommand(fn (InstallCommand $command): InstallCommand => $command
+                ->startWith(fn () => intro('Installing Infinito Onboarding'))
+                ->publishMigrations()
+                ->endWith(fn (InstallCommand $command) => (new Installer)->run($command))
+                // Spatie hides install commands from `artisan list`.
+                ->setHidden(false)
+                ->setDescription('Publish and run the migrations, publish the assets and register the plugin in your panels'));
     }
 
     public function packageRegistered(): void
@@ -89,15 +102,19 @@ class InfinitoOnboardingServiceProvider extends PackageServiceProvider
     {
         return [
             ExportToursCommand::class,
+            ForgetUserCommand::class,
             ImportToursCommand::class,
             PruneEventsCommand::class,
+            UninstallCommand::class,
         ];
     }
 
     /**
+     * Also used by the uninstaller to find the published copies.
+     *
      * @return array<string>
      */
-    protected function getMigrations(): array
+    public static function migrationNames(): array
     {
         return [
             'create_onboarding_tours_table',
@@ -106,6 +123,7 @@ class InfinitoOnboardingServiceProvider extends PackageServiceProvider
             'create_onboarding_tour_events_table',
             'add_translations_to_onboarding_tables',
             'add_meta_to_onboarding_tour_completions_table',
+            'add_user_index_to_onboarding_tour_events_table',
         ];
     }
 }

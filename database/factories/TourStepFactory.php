@@ -32,16 +32,16 @@ class TourStepFactory extends Factory
 
     public function css(string $selector): static
     {
-        return $this->state(fn () => ['target_type' => TargetType::Css, 'target' => $selector]);
+        return $this->state(fn (): array => ['target_type' => TargetType::Css, 'target' => $selector]);
     }
 
     public function untargeted(): static
     {
-        return $this->state(fn () => ['target_type' => TargetType::None, 'target' => null]);
+        return $this->state(fn (): array => ['target_type' => TargetType::None, 'target' => null]);
     }
 
     public function order(int $order): static
     {
-        return $this->state(fn () => ['order' => $order]);
+        return $this->state(fn (): array => ['order' => $order]);
     }
 }

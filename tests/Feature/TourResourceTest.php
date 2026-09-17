@@ -126,6 +126,90 @@ it('falls back to the panel root for tours without a route pattern', function ()
     expect($tour->getPreviewUrl())->toBe(url('admin') . '?onboarding-preview=everywhere');
 });
 
+describe('record mode actions', function (): void {
+    it('builds record URLs from the route pattern or a given path', function (): void {
+        $tour = Tour::factory()->forRoute('admin/orders*')->create(['key' => 'orders']);
+
+        expect($tour->getRecordUrl())->toBe(url('admin/orders') . '?onboarding-record=orders')
+            ->and($tour->getRecordUrl('admin/orders/5/edit?tab=items'))->toBe(url('admin/orders/5/edit') . '?tab=items&onboarding-record=orders');
+    });
+
+    it('knows whether the route pattern names a single page', function (?string $pattern, bool $single): void {
+        expect(Tour::factory()->make(['route_pattern' => $pattern])->hasSinglePageRoute())->toBe($single);
+    })->with([
+        'no pattern' => [null, true],
+        'exact page' => ['admin/orders', true],
+        'trailing wildcard' => ['admin/orders*', true],
+        'wildcard in the middle' => ['admin/orders/*/edit', false],
+        'several patterns' => ['admin/orders*, admin/invoices*', false],
+    ]);
+
+    it('normalises page paths and full URLs of this app', function (): void {
+        expect(Tour::normalisePagePath('/admin/orders/'))->toBe('admin/orders')
+            ->and(Tour::normalisePagePath(url('admin/orders') . '?tab=items'))->toBe('admin/orders?tab=items')
+            ->and(Tour::normalisePagePath('https://evil.test/admin'))->toBeNull()
+            ->and(Tour::normalisePagePath('//evil.test/admin'))->toBeNull()
+            ->and(Tour::normalisePagePath('admin/orders/*/edit'))->toBeNull();
+    });
+
+    it('links straight to record mode when the route names a single page', function (): void {
+        $tour = Tour::factory()->forRoute('admin/orders*')->create(['key' => 'orders']);
+        $this->actingAs($this->author);
+
+        Livewire::test(ListTours::class)
+            ->assertTableActionHasUrl('recordSteps', $tour->getRecordUrl(), $tour);
+
+        Livewire::test(EditTour::class, ['record' => $tour->getRouteKey()])
+            ->assertActionHasUrl('recordSteps', $tour->getRecordUrl());
+
+        Livewire::test(StepsRelationManager::class, ['ownerRecord' => $tour, 'pageClass' => EditTour::class])
+            ->assertTableActionHasUrl('recordSteps', $tour->getRecordUrl());
+    });
+
+    it('asks for the page when the route pattern matches several pages', function (): void {
+        $tour = Tour::factory()->forRoute('admin/orders/*/edit')->create(['key' => 'order-edit']);
+        $this->actingAs($this->author);
+
+        Livewire::test(EditTour::class, ['record' => $tour->getRouteKey()])
+            ->mountAction('recordSteps')
+            ->assertActionDataSet(['path' => 'admin/orders'])
+            ->setActionData(['path' => 'admin/orders/*/edit'])
+            ->callMountedAction()
+            ->assertHasActionErrors(['path'])
+            ->setActionData(['path' => url('admin/orders/5/edit')])
+            ->callMountedAction()
+            ->assertHasNoActionErrors()
+            ->assertRedirect(url('admin/orders/5/edit') . '?onboarding-record=order-edit');
+    });
+
+    it('creates a draft tour and opens record mode on it', function (): void {
+        $this->actingAs($this->author);
+
+        Livewire::test(ListTours::class)
+            ->callAction('recordNewTour', data: ['name' => 'Orders Q3', 'key' => 'orders-q3', 'path' => '/admin/orders'])
+            ->assertHasNoActionErrors()
+            ->assertRedirect(url('admin/orders') . '?onboarding-record=orders-q3');
+
+        $tour = Tour::query()->where('key', 'orders-q3')->sole();
+
+        expect($tour->name)->toBe('Orders Q3')
+            ->and($tour->route_pattern)->toBe('admin/orders')
+            ->and($tour->published_at)->toBeNull()
+            ->and($tour->is_active)->toBeTrue();
+    });
+
+    it('validates the new tour key and page', function (): void {
+        Tour::factory()->create(['key' => 'taken']);
+        $this->actingAs($this->author);
+
+        Livewire::test(ListTours::class)
+            ->callAction('recordNewTour', data: ['name' => 'Taken', 'key' => 'taken', 'path' => 'https://evil.test/admin'])
+            ->assertHasActionErrors(['key' => 'unique', 'path']);
+
+        expect(Tour::count())->toBe(1);
+    });
+});
+
 it('resets seen-state through the table action', function (): void {
     $tour = Tour::factory()->create();
     TourCompletion::factory()->for($tour)->count(2)->create();

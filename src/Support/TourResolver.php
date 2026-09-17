@@ -4,6 +4,7 @@ namespace Arzcode\InfinitoOnboarding\Support;
 
 use Arzcode\InfinitoOnboarding\Enums\TourMode;
 use Arzcode\InfinitoOnboarding\Models\Tour;
+use Arzcode\InfinitoOnboarding\Models\TourCompletion;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
@@ -44,10 +45,14 @@ class TourResolver
         ?string $tenantId = null,
         ?TourMode $mode = null,
     ): Collection {
-        return $this->eligibleQuery($currentRoute, $tenantId, $mode)
+        $tours = $this->eligibleQuery($currentRoute, $tenantId, $mode)
             ->get()
-            ->filter(fn (Tour $tour): bool => $this->passes($tour, $user, $currentRoute, $tenantId))
+            ->filter(fn (Tour $tour): bool => $tour->matchesRoute($currentRoute)
+                && $this->passesTenant($tour, $tenantId)
+                && $this->passesAudience($tour, $user))
             ->values();
+
+        return $this->withoutSeen($tours, $user, $tenantId);
     }
 
     /**
@@ -58,10 +63,12 @@ class TourResolver
      */
     public function unseenFor(Authenticatable $user, ?string $tenantId = null, ?TourMode $mode = null): Collection
     {
-        return $this->eligibleQuery(null, $tenantId, $mode)
+        $tours = $this->eligibleQuery(null, $tenantId, $mode)
             ->get()
-            ->filter(fn (Tour $tour): bool => $this->passesAudience($tour, $user) && ! $this->isSeen($tour, $user, $tenantId))
+            ->filter(fn (Tour $tour): bool => $this->passesAudience($tour, $user))
             ->values();
+
+        return $this->withoutSeen($tours, $user, $tenantId);
     }
 
     /**
@@ -77,7 +84,7 @@ class TourResolver
         ?string $key = null,
     ): ?Tour {
         if ($key !== null) {
-            return Tour::query()->with('steps')->where('key', $key)->first();
+            return Tour::query()->with('steps')->where('key', $key)->forTenant($tenantId)->first();
         }
 
         return $this->eligibleQuery($currentRoute, $tenantId, null)
@@ -104,6 +111,32 @@ class TourResolver
     public function isSeen(Tour $tour, Authenticatable $user, ?string $tenantId = null): bool
     {
         return $tour->isSeenBy($user->getAuthIdentifier(), $tenantId);
+    }
+
+    /**
+     * Drop the tours the user already completed or dismissed for their current
+     * version, using a single query instead of one per tour.
+     *
+     * @param  Collection<int, Tour>  $tours
+     * @return Collection<int, Tour>
+     */
+    public function withoutSeen(Collection $tours, Authenticatable $user, ?string $tenantId = null): Collection
+    {
+        if ($tours->isEmpty()) {
+            return $tours;
+        }
+
+        $seen = TourCompletion::query()
+            ->forUser($user->getAuthIdentifier(), $tenantId)
+            ->whereIn('tour_id', $tours->modelKeys())
+            ->where(fn (Builder $query) => $query->whereNotNull('completed_at')->orWhereNotNull('dismissed_at'))
+            ->get(['tour_id', 'seen_version'])
+            ->map(fn (TourCompletion $completion): string => $completion->tour_id . '|' . $completion->seen_version)
+            ->flip();
+
+        return $tours
+            ->reject(fn (Tour $tour): bool => $seen->has($tour->id . '|' . $tour->version))
+            ->values();
     }
 
     public function passesTenant(Tour $tour, ?string $tenantId): bool
@@ -174,7 +207,7 @@ class TourResolver
             return false;
         }
 
-        if ($users !== [] && ! in_array((string) $user->getAuthIdentifier(), array_map('strval', $users), true)) {
+        if ($users !== [] && ! in_array((string) $user->getAuthIdentifier(), array_map(strval(...), $users), true)) {
             return false;
         }
 
@@ -198,7 +231,7 @@ class TourResolver
             $query->forRoute($currentRoute);
         }
 
-        if ($mode !== null) {
+        if ($mode instanceof TourMode) {
             $query->mode($mode);
         }
 
@@ -262,7 +295,7 @@ class TourResolver
 
         if (method_exists($user, 'getAttribute')) {
             $roles = $user->getAttribute('roles');
-        } elseif (isset($user->roles)) {
+        } elseif (property_exists($user, 'roles') && $user->roles !== null) {
             $roles = $user->roles;
         }
 
@@ -305,8 +338,8 @@ class TourResolver
         }
 
         return collect(Arr::wrap($value))
-            ->map(fn (mixed $item) => is_scalar($item) ? trim((string) $item) : null)
-            ->filter(fn (?string $item) => filled($item))
+            ->map(fn (mixed $item): ?string => is_scalar($item) ? trim((string) $item) : null)
+            ->filter(fn (?string $item): bool => filled($item))
             ->values()
             ->all();
     }

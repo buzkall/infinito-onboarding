@@ -7,8 +7,12 @@
   <script src="../../vendor/livewire/livewire/dist/livewire.js" data-csrf="x" data-update-uri="/livewire/update" data-navigate-once="true"></script>
 </head>
 <body>
-  <main>
+  <main id="fi-main-content">
     <button id="btn-tour" data-tour="export">Export</button>
+    <div class="fi-wi-widget" wire:name="App\Filament\Widgets\NextPerformance"><section class="fi-section"><div class="widget-content">Next performance</div></section></div>
+    <div class="fi-wi-widget" wire:name="App\Filament\Widgets\StatsOverview" wire:key="lw-2767091022-0-0" style="padding:6px"><div class="fi-sc" wire:key="abcdefghijABCDEFGHIJ.stats"><div class="stat">Posts</div><div class="stat stat-b">Books</div></div></div>
+    <nav><a class="nav-posts" href="/admin/posts">Posts</a><a href="/admin/books">Books</a></nav>
+    <div class="fi-fo-field" data-tour="name-field" style="padding:8px"><label>Name</label><input class="name-input" type="text" style="width:100%"></div>
     <div class="fi-fo-field"><label>Email address</label><input id="data.email" type="text"></div>
     <div wire:key="orders.table.filters"><span class="inner">Filters</span></div>
     <section><div><p><em class="deep">Deep text</em></p></div></section>
