@@ -1,8 +1,10 @@
 # Browser smoke tests (optional)
 
 These scripts exercise the built bundle in a real headless Chromium through
-Playwright. They are **not** part of the Pest suite or CI; run them by hand
-after changing anything under `resources/js` or `resources/css`.
+Playwright. They are **not** part of the Pest suite; run them by hand
+after changing anything under `resources/js` or `resources/css`. CI runs them
+too (`npm run test:browser`). The fixtures load Alpine from Livewire's bundle in
+`vendor/`, so `composer install` must have run first.
 
 ```bash
 npm run build

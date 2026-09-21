@@ -39,6 +39,16 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          coverage: none
+
+      # The HTML fixtures load Alpine through vendor/livewire/livewire/dist/livewire.js
+      - name: Install Composer dependencies
+        run: composer update --prefer-dist --no-interaction --no-progress
+
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
