@@ -50,7 +50,7 @@ class TourEvent extends Model
 
     public function getTable(): string
     {
-        return config('infinito-onboarding.table_names.tour_events', 'onboarding_tour_events');
+        return config()->string('infinito-onboarding.table_names.tour_events', 'onboarding_tour_events');
     }
 
     protected static function newFactory(): TourEventFactory
@@ -80,13 +80,19 @@ class TourEvent extends Model
         return $this->belongsTo(TourStep::class);
     }
 
-    /** @param  Builder<TourEvent>  $query */
+    /**
+     * @param  Builder<TourEvent>  $query
+     * @return Builder<TourEvent>
+     */
     protected function scopeOfType(Builder $query, TourEventType $type): Builder
     {
         return $query->where('event', $type);
     }
 
-    /** @param  Builder<TourEvent>  $query */
+    /**
+     * @param  Builder<TourEvent>  $query
+     * @return Builder<TourEvent>
+     */
     protected function scopeForVersion(Builder $query, string $version): Builder
     {
         return $query->where('version', $version);

@@ -5,6 +5,7 @@ use Arzcode\InfinitoOnboarding\Models\Tour;
 use Arzcode\InfinitoOnboarding\Models\TourCompletion;
 use Arzcode\InfinitoOnboarding\Support\TourResolver;
 use Arzcode\InfinitoOnboarding\Tests\Fixtures\User;
+use Illuminate\Auth\GenericUser;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 
@@ -168,6 +169,46 @@ it('lists unseen tours regardless of route', function (): void {
         ->toBe(['orders-log']);
 });
 
+describe('passes()', function (): void {
+    it('passes an eligible tour', function (): void {
+        $tour = Tour::factory()->forRoute('admin/orders*')->create();
+
+        expect($this->resolver->passes($tour, $this->user, 'admin/orders/1'))->toBeTrue();
+    });
+
+    it('fails a tour that breaks any single rule', function (Closure $makeTour, string $route, ?string $tenantId): void {
+        $tour = $makeTour($this->user);
+
+        expect($this->resolver->passes($tour->refresh(), $this->user, $route, $tenantId))->toBeFalse();
+    })->with([
+        'inactive' => [fn (): Tour => Tour::factory()->inactive()->create(), 'admin', null],
+        'unpublished' => [fn (): Tour => Tour::factory()->unpublished()->create(), 'admin', null],
+        'outside its window' => [fn (): Tour => Tour::factory()->create(['ends_at' => now()->subDay()]), 'admin', null],
+        'on another route' => [fn (): Tour => Tour::factory()->forRoute('admin/orders*')->create(), 'admin/customers', null],
+        'for another tenant' => [fn (): Tour => Tour::factory()->forTenant('acme')->create(), 'admin', 'globex'],
+        'outside the audience' => [fn (): Tour => Tour::factory()->audience(['roles' => ['admin']])->create(), 'admin', null],
+        'already seen' => [function (User $user): Tour {
+            $tour = Tour::factory()->create();
+            TourCompletion::factory()->for($tour)->create(['user_id' => $user->id, 'seen_version' => '1']);
+
+            return $tour;
+        }, 'admin', null],
+    ]);
+
+    it('reports the seen-state per tenant and version', function (): void {
+        $tour = Tour::factory()->create();
+        TourCompletion::factory()->for($tour)->create(['user_id' => $this->user->id, 'tenant_id' => 'acme', 'seen_version' => '1']);
+
+        expect($this->resolver->isSeen($tour, $this->user, 'acme'))->toBeTrue()
+            ->and($this->resolver->isSeen($tour, $this->user, 'globex'))->toBeFalse()
+            ->and($this->resolver->isSeen($tour, $this->user))->toBeFalse();
+
+        $tour->update(['version' => '2']);
+
+        expect($this->resolver->isSeen($tour, $this->user, 'acme'))->toBeFalse();
+    });
+});
+
 describe('audience gate', function (): void {
     it('lets everyone through when the audience is empty', function (): void {
         Tour::factory()->audience([])->create();
@@ -251,5 +292,77 @@ describe('audience gate', function (): void {
         $this->user->update(['roles' => ['editor']]);
 
         expect($this->resolver->resolveFor($this->user, 'admin'))->not->toBeNull();
+    });
+
+    it('falls back to hasRole() when the user model has no hasAnyRole()', function (): void {
+        Tour::factory()->audience(['roles' => ['admin', 'editor']])->create();
+
+        $user = new class(['id' => 7]) extends GenericUser
+        {
+            public function hasRole(string $role): bool
+            {
+                return $role === 'editor';
+            }
+        };
+
+        expect($this->resolver->resolveFor($user, 'admin'))->not->toBeNull();
+
+        Tour::query()->update(['audience' => ['roles' => ['admin']]]);
+
+        expect($this->resolver->resolveFor($user, 'admin'))->toBeNull();
+    });
+
+    it('excludes users without any roles when roles are required', function (): void {
+        Tour::factory()->audience(['roles' => ['editor']])->create();
+
+        $this->user->update(['roles' => null]);
+
+        expect($this->resolver->resolveFor($this->user, 'admin'))->toBeNull();
+    });
+
+    it('reads role names from role arrays on the roles attribute', function (): void {
+        Tour::factory()->audience(['roles' => ['editor']])->create();
+
+        $this->user->update(['roles' => [['name' => 'viewer'], ['id' => 3], ['name' => 'editor']]]);
+
+        expect($this->resolver->resolveFor($this->user, 'admin'))->not->toBeNull();
+    });
+
+    it('reads role names from a roles property on non-Eloquent users', function (mixed $roles, bool $passes): void {
+        Tour::factory()->audience(['roles' => ['editor']])->create();
+
+        $user = new class(['id' => 7]) extends GenericUser
+        {
+            public mixed $roles = null;
+        };
+        $user->roles = $roles;
+
+        expect($this->resolver->resolveFor($user, 'admin') !== null)->toBe($passes);
+    })->with([
+        'role objects' => [collect([(object) ['name' => 'viewer'], (object) ['name' => 'editor']]), true],
+        'objects without a name' => [[(object) ['id' => 1], new stdClass], false],
+        'a single role string' => ['editor', true],
+        'integer role ids' => [[1, 2], false],
+        'no roles' => [null, false],
+    ]);
+
+    it('checks permissions through hasPermissionTo() when the Gate denies them', function (): void {
+        Tour::factory()->audience(['permissions' => ['unknown', 'export orders']])->create();
+
+        $user = new class(['id' => 7]) extends GenericUser
+        {
+            public function hasPermissionTo(string $permission): bool
+            {
+                throw_if($permission === 'unknown', RuntimeException::class, 'There is no permission named `unknown`.');
+
+                return $permission === 'export orders';
+            }
+        };
+
+        expect($this->resolver->resolveFor($user, 'admin'))->not->toBeNull();
+
+        Tour::query()->update(['audience' => ['permissions' => ['unknown']]]);
+
+        expect($this->resolver->resolveFor($user, 'admin'))->toBeNull();
     });
 });

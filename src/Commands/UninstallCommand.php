@@ -25,6 +25,8 @@ class UninstallCommand extends Command
 
     protected $description = 'Unregister the plugin and optionally drop its tables and delete its published files';
 
+    protected const PACKAGE = 'arzcode/infinito-onboarding';
+
     public function handle(): int
     {
         intro('Uninstalling Infinito Onboarding');
@@ -37,10 +39,12 @@ class UninstallCommand extends Command
 
         $steps = [
             $this->unregisterPlugin(...),
+            $this->deletePublishedAssets(...),
             $this->dropTables(...),
             $this->deletePublishedMigrations(...),
-            $this->deletePublishedAssets(...),
-            $this->deletePublishedOverrides(...),
+            fn () => $this->deletePublished(config_path('infinito-onboarding.php'), 'config file'),
+            fn () => $this->deletePublished(lang_path('vendor/infinito-onboarding'), 'translations'),
+            fn () => $this->deletePublished(resource_path('views/vendor/infinito-onboarding'), 'views'),
             $this->removePackage(...),
         ];
 
@@ -56,7 +60,7 @@ class UninstallCommand extends Command
     {
         $registered = array_filter(
             PanelProviderPatcher::files(),
-            fn (string $file): bool => PanelProviderPatcher::contains((string) file_get_contents($file)),
+            fn (string $file): bool => PanelProviderPatcher::mentions((string) file_get_contents($file)),
         );
 
         if ($registered === []) {
@@ -66,12 +70,21 @@ class UninstallCommand extends Command
         }
 
         foreach ($registered as $file) {
-            $patched = PanelProviderPatcher::remove((string) file_get_contents($file));
+            $contents = (string) file_get_contents($file);
+            $patched = PanelProviderPatcher::remove($contents);
+            $relative = $this->relativePath($file);
+
+            if ($patched === $contents || ! PanelProviderPatcher::parses($patched)) {
+                warning(sprintf('Could not remove InfinitoOnboardingPlugin from %s safely. Remove it by hand.', $relative));
+
+                continue;
+            }
+
             file_put_contents($file, $patched);
 
-            PanelProviderPatcher::contains($patched)
-                ? warning(sprintf('Could not fully remove InfinitoOnboardingPlugin from %s. Remove it by hand.', $this->relativePath($file)))
-                : info(sprintf('Removed InfinitoOnboardingPlugin from %s.', $this->relativePath($file)));
+            PanelProviderPatcher::mentions($patched)
+                ? warning(sprintf('InfinitoOnboardingPlugin is still referenced in %s. Remove it by hand.', $relative))
+                : info(sprintf('Removed InfinitoOnboardingPlugin from %s.', $relative));
         }
     }
 
@@ -80,10 +93,10 @@ class UninstallCommand extends Command
         // Children first: they reference the tours table.
         $tables = array_filter(
             [
-                config('infinito-onboarding.table_names.tour_events', 'onboarding_tour_events'),
-                config('infinito-onboarding.table_names.tour_completions', 'onboarding_tour_completions'),
-                config('infinito-onboarding.table_names.tour_steps', 'onboarding_tour_steps'),
-                config('infinito-onboarding.table_names.tours', 'onboarding_tours'),
+                config()->string('infinito-onboarding.table_names.tour_events', 'onboarding_tour_events'),
+                config()->string('infinito-onboarding.table_names.tour_completions', 'onboarding_tour_completions'),
+                config()->string('infinito-onboarding.table_names.tour_steps', 'onboarding_tour_steps'),
+                config()->string('infinito-onboarding.table_names.tours', 'onboarding_tours'),
             ],
             fn (string $table): bool => Schema::hasTable($table),
         );
@@ -107,10 +120,11 @@ class UninstallCommand extends Command
 
         // The tables are gone, so their migrations must be able to run again.
         if (Schema::hasTable('migrations')) {
-            DB::table('migrations')
-                ->where(fn ($query) => collect(InfinitoOnboardingServiceProvider::migrationNames())
-                    ->each(fn (string $name) => $query->orWhere('migration', 'like', "%_{$name}")))
-                ->delete();
+            $ours = DB::table('migrations')
+                ->pluck('migration')
+                ->filter(fn (mixed $migration): bool => is_string($migration) && $this->isPackageMigration($migration));
+
+            DB::table('migrations')->whereIn('migration', $ours->all())->delete();
         }
 
         info('Onboarding tables dropped.');
@@ -118,9 +132,10 @@ class UninstallCommand extends Command
 
     protected function deletePublishedMigrations(): void
     {
-        $files = collect(InfinitoOnboardingServiceProvider::migrationNames())
-            ->flatMap(fn (string $name): array => glob(database_path("migrations/*_{$name}.php")) ?: [])
-            ->all();
+        $files = array_values(array_filter(
+            glob(database_path('migrations/*.php')) ?: [],
+            fn (string $file): bool => $this->isPackageMigration(basename($file, '.php')),
+        ));
 
         if ($files === []) {
             note('No published onboarding migrations found.');
@@ -151,60 +166,66 @@ class UninstallCommand extends Command
 
         foreach ($dirs as $dir) {
             File::deleteDirectory($dir);
+
+            // Drop the vendor folder only when no other package of the vendor publishes there.
+            if (File::isEmptyDirectory(dirname($dir))) {
+                File::deleteDirectory(dirname($dir));
+            }
         }
 
         info('Published assets deleted.');
     }
 
-    protected function deletePublishedOverrides(): void
+    protected function deletePublished(string $path, string $what): void
     {
-        $paths = array_filter(
-            [
-                config_path('infinito-onboarding.php'),
-                lang_path('vendor/infinito-onboarding'),
-                resource_path('views/vendor/infinito-onboarding'),
-            ],
-            file_exists(...),
-        );
-
-        if ($paths === []) {
+        if (! file_exists($path)) {
             return;
         }
 
-        $list = implode(', ', array_map($this->relativePath(...), $paths));
+        $relative = $this->relativePath($path);
 
-        if (! confirm(label: "Delete the published config, translations and views ({$list})?", default: false)) {
-            note('Skipped. The published files are left in place.');
+        if (! confirm(label: "Delete the published {$what} ({$relative})?", default: false)) {
+            note("Skipped. The published {$what} are left in place.");
 
             return;
         }
 
-        foreach ($paths as $path) {
-            is_dir($path) ? File::deleteDirectory($path) : File::delete($path);
-        }
-
-        info('Published config, translations and views deleted.');
+        is_dir($path) ? File::deleteDirectory($path) : File::delete($path);
+        info("Deleted {$relative}.");
     }
 
     protected function removePackage(): void
     {
-        if (! confirm(label: 'Run `composer remove arzcode/infinito-onboarding` now?', default: true)) {
-            outro('Done. Run `composer remove arzcode/infinito-onboarding` to finish the uninstall.');
+        // Without the flag Composer may also upgrade the package's dependencies (Filament, …).
+        $command = 'composer remove ' . self::PACKAGE . ' --no-update-with-dependencies';
+
+        if (! confirm(label: 'Run `composer remove ' . self::PACKAGE . '` now?', default: true)) {
+            outro("Done. Run `{$command}` to finish the uninstall.");
 
             return;
         }
 
         $result = Process::path(base_path())
             ->forever()
-            ->run('composer remove arzcode/infinito-onboarding', fn (string $type, string $output) => $this->output->write($output));
+            ->run($command, fn (string $type, string $output) => $this->output->write($output));
 
         if (! $result->successful()) {
-            error('`composer remove arzcode/infinito-onboarding` failed. Run it by hand to finish the uninstall.');
+            error("`{$command}` failed. Run it by hand to finish the uninstall.");
 
             return;
         }
 
         outro('Infinito Onboarding uninstalled.');
+    }
+
+    /**
+     * Matches `2026_01_01_000000_create_onboarding_tables` exactly, so
+     * another package's migration sharing a suffix is never touched.
+     */
+    protected function isPackageMigration(string $migration): bool
+    {
+        return collect(InfinitoOnboardingServiceProvider::migrationNames())
+            ->contains(fn (string $name): bool => preg_match('/^\d{4}_\d{2}_\d{2}_\d{6}_' . preg_quote($name, '/') . '$/', $migration) === 1);
     }
 
     protected function relativePath(string $path): string

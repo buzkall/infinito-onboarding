@@ -19,7 +19,7 @@ Every pull request must keep these green:
 vendor/bin/pest            # tests
 vendor/bin/pint --test     # code style
 vendor/bin/rector process --dry-run # automated refactors (run without --dry-run, then Pint, to apply)
-vendor/bin/phpstan analyse # static analysis, level 5
+vendor/bin/phpstan analyse # static analysis, level 10
 ```
 
 If you change anything under `resources/js` or `resources/css`, run `npm run build` and commit the `resources/dist` output: consumers must not need npm. The optional browser smoke tests (`npm run test:browser`, needs Playwright) are a good way to check the bundle in a real Chromium.

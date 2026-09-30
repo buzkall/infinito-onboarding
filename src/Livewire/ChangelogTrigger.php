@@ -111,7 +111,7 @@ class ChangelogTrigger extends Component
             try {
                 TourCompletion::query()->updateOrCreate([
                     'tour_id' => $tour->id,
-                    'user_id' => (string) $user->getAuthIdentifier(),
+                    'user_id' => TourCompletion::userIdOf($user),
                     'tenant_id' => TourCompletion::normalizeTenantId($this->tenantId),
                     'seen_version' => $tour->version,
                 ], $completed ? ['completed_at' => now()] : ['dismissed_at' => now()]);

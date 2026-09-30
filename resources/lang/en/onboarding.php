@@ -24,7 +24,7 @@ return [
 
     'resource' => [
         'label' => 'Tour',
-        'plural_label' => 'Onboarding tours',
+        'plural_label' => 'Tours',
         'sections' => [
             'basics' => 'Tour',
             'publishing' => 'Publishing',

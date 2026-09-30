@@ -18,11 +18,14 @@ class TourStepFactory extends Factory
 
     public function definition(): array
     {
+        /** @var string $target */
+        $target = fake()->unique()->words(2, true);
+
         return [
             'tour_id' => Tour::factory(),
             'order' => 0,
             'target_type' => TargetType::DataTour,
-            'target' => Str::slug(fake()->unique()->words(2, true)),
+            'target' => Str::slug($target),
             'title' => fake()->sentence(3),
             'body' => '<p>' . fake()->sentence() . '</p>',
             'placement' => Placement::Auto,

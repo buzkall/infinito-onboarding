@@ -25,9 +25,12 @@ class Segments
      */
     public function register(string $name, array|Closure|callable $definition): static
     {
-        $this->segments[$name] = $definition instanceof Closure || is_array($definition)
+        /** @var array<string, mixed>|Closure $segment */
+        $segment = $definition instanceof Closure || is_array($definition)
             ? $definition
             : Closure::fromCallable($definition);
+
+        $this->segments[$name] = $segment;
 
         return $this;
     }
@@ -44,6 +47,7 @@ class Segments
 
         foreach ([...$configured, ...$this->segments] as $name => $definition) {
             if (is_array($definition)) {
+                /** @var array<string, mixed> $definition */
                 $segments[(string) $name] = $definition;
             } elseif ($definition instanceof Closure) {
                 $segments[(string) $name] = $definition;
@@ -81,7 +85,7 @@ class Segments
         $options = [];
 
         foreach ($this->names() as $name) {
-            $options[$name] = (string) ($labels[$name] ?? Str::headline($name));
+            $options[$name] = Cast::string($labels[$name] ?? null) ?? Str::headline($name);
         }
 
         return $options;

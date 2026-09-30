@@ -17,7 +17,7 @@ class Locales
     public static function all(): array
     {
         $locales = config('infinito-onboarding.locales', []);
-        $locales = is_array($locales) ? array_values(array_filter(array_map(strval(...), $locales))) : [];
+        $locales = is_array($locales) ? array_values(array_filter(array_map(fn (mixed $locale): string => Cast::string($locale) ?? '', $locales))) : [];
 
         return $locales === [] ? [static::appLocale()] : array_values(array_unique($locales));
     }
@@ -53,7 +53,7 @@ class Locales
     {
         $labels = config('infinito-onboarding.locale_labels', []);
 
-        return is_array($labels) && isset($labels[$locale]) ? (string) $labels[$locale] : strtoupper($locale);
+        return (is_array($labels) ? Cast::string($labels[$locale] ?? null) : null) ?? strtoupper($locale);
     }
 
     protected static function appLocale(): string

@@ -25,13 +25,15 @@ use Illuminate\Support\Str;
  * save() syncs idempotently into the database by key; running it again with
  * the same definition changes nothing, running it with a changed definition
  * updates the tour and replaces its steps.
+ *
+ * @phpstan-type StepData array{target_type: TargetType, target: string|null, title: string, body: string|null, placement: Placement, extra: array<string, mixed>|null, translations: array<string, array<string, string>>|null}
  */
 class TourDefinition
 {
     /** @var array<string, mixed> */
     protected array $attributes = [];
 
-    /** @var array<int, array<string, mixed>> */
+    /** @var array<int, StepData> */
     protected array $steps = [];
 
     final public function __construct(protected string $key)
@@ -57,7 +59,7 @@ class TourDefinition
      */
     public static function fromArray(array $data): static
     {
-        $key = (string) ($data['key'] ?? '');
+        $key = Cast::string($data['key'] ?? null) ?? '';
 
         if ($key === '') {
             throw new \InvalidArgumentException('A tour definition needs a "key".');
@@ -72,24 +74,36 @@ class TourDefinition
         }
 
         if (isset($data['mode'])) {
-            $definition->mode($data['mode'] instanceof TourMode ? $data['mode'] : TourMode::from((string) $data['mode']));
+            $definition->mode($data['mode'] instanceof TourMode ? $data['mode'] : TourMode::from(Cast::string($data['mode']) ?? ''));
         }
 
         foreach (['published_at', 'starts_at', 'ends_at'] as $date) {
             if (array_key_exists($date, $data)) {
-                $definition->attributes[$date] = filled($data[$date]) ? Date::parse($data[$date]) : null;
+                $value = $data[$date];
+                $definition->attributes[$date] = filled($value) ? Date::parse($value instanceof DateTimeInterface ? $value : Cast::string($value)) : null;
             }
         }
 
-        foreach ($data['steps'] ?? [] as $step) {
+        $steps = $data['steps'] ?? [];
+
+        foreach (is_array($steps) ? $steps : [] as $step) {
+            if (! is_array($step)) {
+                continue;
+            }
+
+            $targetType = $step['target_type'] ?? null;
+            $placement = $step['placement'] ?? null;
+            /** @var array<string, mixed>|null $extra */
+            $extra = is_array($step['extra'] ?? null) ? $step['extra'] : null;
+
             $definition->addStep(
-                targetType: $step['target_type'] instanceof TargetType ? $step['target_type'] : TargetType::from((string) ($step['target_type'] ?? 'data_tour')),
-                target: $step['target'] ?? null,
-                title: (string) ($step['title'] ?? ''),
-                body: $step['body'] ?? null,
-                placement: isset($step['placement']) ? ($step['placement'] instanceof Placement ? $step['placement'] : Placement::from((string) $step['placement'])) : Placement::Auto,
-                extra: $step['extra'] ?? null,
-                translations: is_array($step['translations'] ?? null) ? $step['translations'] : null,
+                targetType: $targetType instanceof TargetType ? $targetType : TargetType::from(Cast::string($targetType) ?? 'data_tour'),
+                target: Cast::string($step['target'] ?? null),
+                title: Cast::string($step['title'] ?? null) ?? '',
+                body: Cast::string($step['body'] ?? null),
+                placement: $placement === null ? Placement::Auto : ($placement instanceof Placement ? $placement : Placement::from(Cast::string($placement) ?? '')),
+                extra: $extra,
+                translations: TourStep::cleanTranslations(is_array($step['translations'] ?? null) ? $step['translations'] : null),
             );
         }
 
@@ -181,9 +195,7 @@ class TourDefinition
      */
     public function roles(array|string $roles): static
     {
-        $this->attributes['audience'] = [...($this->attributes['audience'] ?? []), 'roles' => (array) $roles];
-
-        return $this;
+        return $this->mergeAudience(['roles' => (array) $roles]);
     }
 
     /**
@@ -191,9 +203,7 @@ class TourDefinition
      */
     public function permissions(array|string $permissions): static
     {
-        $this->attributes['audience'] = [...($this->attributes['audience'] ?? []), 'permissions' => (array) $permissions];
-
-        return $this;
+        return $this->mergeAudience(['permissions' => (array) $permissions]);
     }
 
     /**
@@ -201,9 +211,7 @@ class TourDefinition
      */
     public function users(array|string|int $users): static
     {
-        $this->attributes['audience'] = [...($this->attributes['audience'] ?? []), 'users' => array_map(strval(...), (array) $users)];
-
-        return $this;
+        return $this->mergeAudience(['users' => array_map(strval(...), (array) $users)]);
     }
 
     /**
@@ -211,9 +219,7 @@ class TourDefinition
      */
     public function segments(string ...$segments): static
     {
-        $this->attributes['audience'] = [...($this->attributes['audience'] ?? []), 'segments' => array_values($segments)];
-
-        return $this;
+        return $this->mergeAudience(['segments' => array_values($segments)]);
     }
 
     /**
@@ -359,7 +365,8 @@ class TourDefinition
     public function before(array $actions): static
     {
         $step = &$this->lastStep();
-        $step['extra'] = [...($step['extra'] ?? []), 'before' => [...($step['extra']['before'] ?? []), ...$actions]];
+        $before = $step['extra']['before'] ?? [];
+        $step['extra'] = [...($step['extra'] ?? []), 'before' => [...(is_array($before) ? $before : []), ...$actions]];
 
         return $this;
     }
@@ -372,9 +379,10 @@ class TourDefinition
     public function translate(string $locale, array $values): static
     {
         $step = &$this->lastStep();
+        $translations = $step['translations'] ?? [];
         $step['translations'] = TourStep::cleanTranslations([
-            ...($step['translations'] ?? []),
-            $locale => [...(($step['translations'] ?? [])[$locale] ?? []), ...$values],
+            ...$translations,
+            $locale => [...($translations[$locale] ?? []), ...$values],
         ]);
 
         return $this;
@@ -387,9 +395,10 @@ class TourDefinition
      */
     public function translateTour(string $locale, array $values): static
     {
+        $translations = Tour::cleanTranslations(is_array($this->attributes['translations'] ?? null) ? $this->attributes['translations'] : null) ?? [];
         $this->attributes['translations'] = Tour::cleanTranslations([
-            ...($this->attributes['translations'] ?? []),
-            $locale => [...(($this->attributes['translations'] ?? [])[$locale] ?? []), ...$values],
+            ...$translations,
+            $locale => [...($translations[$locale] ?? []), ...$values],
         ]);
 
         return $this;
@@ -408,7 +417,18 @@ class TourDefinition
     }
 
     /**
-     * @return array<string, mixed>
+     * @param  array<string, mixed>  $criteria
+     */
+    protected function mergeAudience(array $criteria): static
+    {
+        $audience = $this->attributes['audience'] ?? null;
+        $this->attributes['audience'] = [...(is_array($audience) ? $audience : []), ...$criteria];
+
+        return $this;
+    }
+
+    /**
+     * @return StepData
      */
     protected function &lastStep(): array
     {
@@ -451,7 +471,7 @@ class TourDefinition
     }
 
     /**
-     * @return array<int, array<string, mixed>>
+     * @return array<int, StepData>
      */
     public function getSteps(): array
     {

@@ -31,6 +31,13 @@ it('registers the resource only when ->resource() is enabled', function (): void
     expect($panel->getResources())->not->toContain(TourResource::class);
 });
 
+it('is labelled Tours in the navigation and the table', function (string $locale): void {
+    app()->setLocale($locale);
+
+    expect(TourResource::getNavigationLabel())->toBe('Tours')
+        ->and(TourResource::getPluralModelLabel())->toBe('Tours');
+})->with(['en', 'es']);
+
 it('is gated behind the plugin authorize closure', function (): void {
     $this->actingAs($this->viewer);
     expect(TourResource::canAccess())->toBeFalse();

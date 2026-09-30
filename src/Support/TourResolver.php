@@ -110,7 +110,7 @@ class TourResolver
 
     public function isSeen(Tour $tour, Authenticatable $user, ?string $tenantId = null): bool
     {
-        return $tour->isSeenBy($user->getAuthIdentifier(), $tenantId);
+        return $tour->isSeenBy(TourCompletion::userIdOf($user), $tenantId);
     }
 
     /**
@@ -127,7 +127,7 @@ class TourResolver
         }
 
         $seen = TourCompletion::query()
-            ->forUser($user->getAuthIdentifier(), $tenantId)
+            ->forUser(TourCompletion::userIdOf($user), $tenantId)
             ->whereIn('tour_id', $tours->modelKeys())
             ->where(fn (Builder $query) => $query->whereNotNull('completed_at')->orWhereNotNull('dismissed_at'))
             ->get(['tour_id', 'seen_version'])
@@ -207,7 +207,7 @@ class TourResolver
             return false;
         }
 
-        if ($users !== [] && ! in_array((string) $user->getAuthIdentifier(), array_map(strval(...), $users), true)) {
+        if ($users !== [] && ! in_array(TourCompletion::userIdOf($user), array_map(strval(...), $users), true)) {
             return false;
         }
 
@@ -303,18 +303,18 @@ class TourResolver
             return [];
         }
 
-        return collect($roles)
+        return collect(is_iterable($roles) ? iterator_to_array($roles, false) : [$roles])
             ->map(function (mixed $role): ?string {
                 if (is_string($role) || is_int($role)) {
                     return (string) $role;
                 }
 
                 if (is_array($role)) {
-                    return isset($role['name']) ? (string) $role['name'] : null;
+                    return Cast::string($role['name'] ?? null);
                 }
 
                 if (is_object($role) && isset($role->name)) {
-                    return (string) $role->name;
+                    return Cast::string($role->name);
                 }
 
                 return null;

@@ -7,6 +7,7 @@ use Arzcode\InfinitoOnboarding\Enums\TargetType;
 use Arzcode\InfinitoOnboarding\Filament\Resources\TourResource;
 use Arzcode\InfinitoOnboarding\Filament\Support\TranslationTabs;
 use Arzcode\InfinitoOnboarding\Models\TourStep;
+use Arzcode\InfinitoOnboarding\Support\Cast;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\CreateAction;
 use Filament\Actions\DeleteAction;
@@ -131,27 +132,41 @@ class StepsRelationManager extends RelationManager
                                     ->minValue(0)
                                     ->suffix('ms'),
                             ])
-                            ->mutateDehydratedStateUsing(fn (?array $state): array => collect($state ?? [])
-                                ->map(function (array $action): array {
-                                    $target = (string) ($action['target'] ?? '');
-                                    $isSelector = (bool) preg_match('/[#.\[\]>:\s]/', $target);
-
-                                    return [
-                                        'type' => $action['type'] ?? 'click',
-                                        'target_type' => $isSelector ? TargetType::Css->value : TargetType::DataTour->value,
-                                        'target' => $target,
-                                        'timeout' => (int) ($action['timeout'] ?? 2000),
-                                    ];
-                                })
-                                ->values()
-                                ->all()),
+                            ->mutateDehydratedStateUsing(fn (?array $state): array => static::normaliseBeforeActions($state)),
                     ]),
             ]);
     }
 
     /**
-     * @param  array<string, mixed>  $data
-     * @return array<string, mixed>
+     * @param  array<mixed>|null  $state
+     * @return array<int, array{type: string, target_type: string, target: string, timeout: int}>
+     */
+    protected static function normaliseBeforeActions(?array $state): array
+    {
+        $actions = [];
+
+        foreach ($state ?? [] as $action) {
+            if (! is_array($action)) {
+                continue;
+            }
+
+            $target = Cast::string($action['target'] ?? null) ?? '';
+            $isSelector = (bool) preg_match('/[#.\[\]>:\s]/', $target);
+
+            $actions[] = [
+                'type' => Cast::string($action['type'] ?? null) ?? 'click',
+                'target_type' => $isSelector ? TargetType::Css->value : TargetType::DataTour->value,
+                'target' => $target,
+                'timeout' => Cast::int($action['timeout'] ?? null) ?? 2000,
+            ];
+        }
+
+        return $actions;
+    }
+
+    /**
+     * @param  array<mixed>  $data
+     * @return array<mixed>
      */
     protected static function cleanStepData(array $data): array
     {
@@ -191,7 +206,7 @@ class StepsRelationManager extends RelationManager
                 TourResource::recordStepsAction(),
                 CreateAction::make()
                     ->mutateDataUsing(function (array $data): array {
-                        $data['order'] ??= ((int) $this->getRelationship()->max('order')) + 1;
+                        $data['order'] ??= (Cast::int($this->getRelationship()->max('order')) ?? 0) + 1;
 
                         return static::cleanStepData($data);
                     }),

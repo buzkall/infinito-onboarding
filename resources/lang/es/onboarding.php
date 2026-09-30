@@ -24,7 +24,7 @@ return [
 
     'resource' => [
         'label' => 'Tour',
-        'plural_label' => 'Tours de bienvenida',
+        'plural_label' => 'Tours',
         'sections' => [
             'basics' => 'Tour',
             'publishing' => 'Publicación',

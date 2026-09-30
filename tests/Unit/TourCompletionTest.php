@@ -2,6 +2,7 @@
 
 use Arzcode\InfinitoOnboarding\Models\Tour;
 use Arzcode\InfinitoOnboarding\Models\TourCompletion;
+use Illuminate\Auth\GenericUser;
 use Illuminate\Database\UniqueConstraintViolationException;
 
 it('enforces uniqueness on tour, user, tenant and version', function (): void {
@@ -37,6 +38,22 @@ it('stores the user id as a string so uuid and integer keys both work', function
 
     expect($completion->user_id)->toBe('42');
 });
+
+it('derives the stored user id from integer and string auth identifiers', function (mixed $id, string $expected): void {
+    expect(TourCompletion::userIdOf(new GenericUser(['id' => $id])))->toBe($expected);
+})->with([
+    'integer' => [42, '42'],
+    'uuid' => ['9d6f1c2e-6b1a-4f0e-9c1d-2a3b4c5d6e7f', '9d6f1c2e-6b1a-4f0e-9c1d-2a3b4c5d6e7f'],
+]);
+
+it('refuses users whose auth identifier is not a string or integer', function (mixed $id): void {
+    expect(fn (): string => TourCompletion::userIdOf(new GenericUser(['id' => $id])))
+        ->toThrow(UnexpectedValueException::class);
+})->with([
+    'null' => [null],
+    'array' => [[1, 2]],
+    'float' => [1.5],
+]);
 
 it('scopes completions to a user and tenant', function (): void {
     TourCompletion::factory()->create(['user_id' => 1, 'tenant_id' => null]);

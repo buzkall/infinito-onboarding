@@ -80,6 +80,6 @@ class TourExporter
 
     public static function defaultPath(): string
     {
-        return (string) config('infinito-onboarding.export_path', database_path('tours'));
+        return config()->string('infinito-onboarding.export_path', database_path('tours'));
     }
 }

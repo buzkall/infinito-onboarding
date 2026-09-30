@@ -56,6 +56,7 @@ class TourRecorder extends Component
     {
         $this->authorizeAccess();
 
+        /** @var array<int, array{id?: int|string|null, title: string, body?: string|null, placement?: string|null, target_type: string, target?: string|null, extra?: array<string, mixed>|null}> $validated */
         $validated = Validator::make(['steps' => $steps], [
             'steps' => ['array'],
             'steps.*.id' => ['nullable', 'integer'],
@@ -174,7 +175,7 @@ class TourRecorder extends Component
 
     public static function recordParameter(): string
     {
-        return (string) config('infinito-onboarding.query_parameters.record', 'onboarding-record');
+        return config()->string('infinito-onboarding.query_parameters.record', 'onboarding-record');
     }
 
     public static function exitUrl(Request $request): string

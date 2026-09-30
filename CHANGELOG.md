@@ -11,6 +11,7 @@ All notable changes to `arzcode/infinito-onboarding` are documented here. The fo
 
 ### Changed
 
+- The seven migrations are merged into a single `create_onboarding_tables` migration.
 - Rector (`rector.php`) now runs in CI alongside Pint and PHPStan; the codebase was refactored with it (no behaviour changes).
 
 ### Fixed
@@ -40,7 +41,7 @@ All notable changes to `arzcode/infinito-onboarding` are documented here. The fo
 - `php artisan infinito-onboarding:uninstall`: unregisters the plugin and deletes the published assets, then optionally drops the tables, deletes the published migrations, config, translations and views, and runs `composer remove`.
 - `onboarding:forget-user {id}` command and `Support\UserData::forget()` to erase a user's completions and events.
 - Spanish translation.
-- Index on `(user_id, tenant_id)` for the events table: publish the new `add_user_index_to_onboarding_tour_events_table` migration.
+- Index on `(user_id, tenant_id)` for the events table.
 - README screenshots and a Testbench workbench (`composer workbench:reset`, `composer workbench:serve`, `node tests/browser/screenshots.js`) to regenerate them.
 
 ## [1.0.0] - 2026-09-05

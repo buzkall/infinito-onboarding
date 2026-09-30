@@ -17,8 +17,10 @@ class TourImporter
      */
     public function importArray(array $data): Tour
     {
-        if (isset($data['format']) && (int) $data['format'] > TourExporter::FORMAT_VERSION) {
-            throw new InvalidArgumentException("Unsupported tour format version [{$data['format']}].");
+        $format = $data['format'] ?? null;
+
+        if (is_numeric($format) && (int) $format > TourExporter::FORMAT_VERSION) {
+            throw new InvalidArgumentException("Unsupported tour format version [{$format}].");
         }
 
         return TourDefinition::fromArray($data)->save();
@@ -31,6 +33,8 @@ class TourImporter
         if (! is_array($data)) {
             throw new InvalidArgumentException('Tour JSON must decode to an object.');
         }
+
+        /** @var array<string, mixed> $data */
 
         return $this->importArray($data);
     }
@@ -57,7 +61,7 @@ class TourImporter
         $imported = [];
 
         if (File::isDirectory($directory)) {
-            foreach (File::glob(rtrim($directory, '/\\') . '/*.json') as $path) {
+            foreach (array_filter(File::glob(rtrim($directory, '/\\') . '/*.json'), is_string(...)) as $path) {
                 $imported[] = $this->importFile($path);
             }
         }

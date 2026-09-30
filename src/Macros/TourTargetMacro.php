@@ -26,7 +26,7 @@ use Filament\Tables\Columns\Column;
  */
 class TourTargetMacro
 {
-    public const ATTRIBUTE = 'data-tour';
+    public const string ATTRIBUTE = 'data-tour';
 
     public static function register(): void
     {

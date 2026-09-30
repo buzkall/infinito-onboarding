@@ -8,6 +8,7 @@ use Arzcode\InfinitoOnboarding\Models\Tour;
 use Arzcode\InfinitoOnboarding\Models\TourCompletion;
 use Arzcode\InfinitoOnboarding\Models\TourEvent;
 use Arzcode\InfinitoOnboarding\Models\TourStep;
+use Arzcode\InfinitoOnboarding\Support\Cast;
 use Arzcode\InfinitoOnboarding\Support\TourAnalytics;
 use Arzcode\InfinitoOnboarding\Support\TourResolver;
 use Filament\Facades\Filament;
@@ -92,7 +93,7 @@ class TourOverlay extends Component
 
         $attributes = [
             'tour_id' => $tour->id,
-            'user_id' => (string) $user->getAuthIdentifier(),
+            'user_id' => TourCompletion::userIdOf($user),
             'tenant_id' => TourCompletion::normalizeTenantId($this->tenantId),
             'seen_version' => $tour->version,
         ];
@@ -110,12 +111,12 @@ class TourOverlay extends Component
         }
 
         $dismissed = array_values(array_unique([...$completion->getDismissedStepIds(), $stepId]));
-        $remaining = $tour->steps->pluck('id')->map(fn ($id): int => (int) $id)->diff($dismissed);
+        $remaining = $tour->steps->map(fn (TourStep $step): int => $step->id)->diff($dismissed);
 
         $completion->meta = [...($completion->meta ?? []), 'dismissed_steps' => $dismissed];
 
         if ($remaining->isEmpty()) {
-            $completion->completed_at ??= now();
+            $completion->completed_at ??= now()->toImmutable();
         }
 
         $completion->save();
@@ -178,7 +179,7 @@ class TourOverlay extends Component
         TourEvent::query()->create([
             'tour_id' => $tour->id,
             'step_id' => $stepId,
-            'user_id' => (string) $user->getAuthIdentifier(),
+            'user_id' => TourCompletion::userIdOf($user),
             'tenant_id' => TourCompletion::normalizeTenantId($this->tenantId),
             'version' => $tour->version,
             'event' => $type,
@@ -199,7 +200,7 @@ class TourOverlay extends Component
             return false;
         }
 
-        $key = 'infinito-onboarding:events:' . $user->getAuthIdentifier() . ':' . $tour->id;
+        $key = 'infinito-onboarding:events:' . TourCompletion::userIdOf($user) . ':' . $tour->id;
 
         if (RateLimiter::tooManyAttempts($key, (int) $max)) {
             return true;
@@ -221,7 +222,7 @@ class TourOverlay extends Component
 
         $attributes = [
             'tour_id' => $tour->id,
-            'user_id' => (string) $user->getAuthIdentifier(),
+            'user_id' => TourCompletion::userIdOf($user),
             'tenant_id' => TourCompletion::normalizeTenantId($this->tenantId),
             'seen_version' => $tour->version,
         ];
@@ -247,7 +248,7 @@ class TourOverlay extends Component
         $payload = $tour instanceof Tour ? static::payloadFor($tour) : null;
 
         if ($tour?->isHint() && $payload !== null && ($user = $this->user()) instanceof Authenticatable) {
-            $payload['dismissed_steps'] = $tour->completionFor($user->getAuthIdentifier(), $this->tenantId)?->getDismissedStepIds() ?? [];
+            $payload['dismissed_steps'] = $tour->completionFor(TourCompletion::userIdOf($user), $this->tenantId)?->getDismissedStepIds() ?? [];
         }
 
         return view($view, [
@@ -325,14 +326,14 @@ class TourOverlay extends Component
 
     public static function previewParameter(): string
     {
-        return (string) config('infinito-onboarding.query_parameters.preview', 'onboarding-preview');
+        return config()->string('infinito-onboarding.query_parameters.preview', 'onboarding-preview');
     }
 
     public static function currentTenantId(): ?string
     {
         $tenant = Filament::getTenant();
 
-        return $tenant?->getKey() !== null ? (string) $tenant->getKey() : null;
+        return Cast::string($tenant?->getKey());
     }
 
     /**

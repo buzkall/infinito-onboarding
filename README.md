@@ -30,6 +30,8 @@ php artisan infinito-onboarding:install
 
 The installer publishes the migrations, offers to publish the config and run the migrations, publishes the Filament assets and registers the plugin in the `app/Providers/Filament/*PanelProvider.php` files you pick (asking whether to add the resource and the "What's new" button). It adds `->authorize(fn (): bool => app()->isLocal())` as a placeholder: **replace it with your own check**, otherwise nobody can manage, preview or record tours outside local environments.
 
+Re-running the installer is safe: migrations are not published twice, an existing config is kept, and panels that already mention `InfinitoOnboardingPlugin` are left as they are. Every patched provider is checked to still be valid PHP before it is written; when a provider can't be patched safely, the installer tells you to register the plugin by hand.
+
 ### Manual installation
 
 ```bash
@@ -72,7 +74,9 @@ Everything is opt-in: with only `->plugin(InfinitoOnboardingPlugin::make())` the
 php artisan infinito-onboarding:uninstall
 ```
 
-Removes the plugin from your panel providers and the published assets, then asks before dropping the onboarding tables, deleting the published migrations, config, translations and views, and running `composer remove arzcode/infinito-onboarding`.
+Removes the plugin from your panel providers and deletes the published assets without asking. It then asks separately before dropping the onboarding tables, deleting the published migrations, config, translations and views, and running `composer remove arzcode/infinito-onboarding --no-update-with-dependencies`.
+
+Only this package is touched: other plugins in the same `->plugins([...])` array, other packages' assets, migrations and translations are left alone. The `--no-update-with-dependencies` flag stops Composer from upgrading shared dependencies such as Filament while removing the package. A provider that can't be unpatched safely (a subclass of the plugin, for instance) is not modified, and you're told to edit it by hand.
 
 ### Plugin options
 
@@ -100,7 +104,7 @@ Removes the plugin from your panel providers and the published assets, then asks
 
 | Tour resource | Analytics on the edit page |
 |---|---|
-| ![The Onboarding Tours resource table](docs/screenshots/resource-list.png) | ![Views, completion rate, per-step drop-off and missing targets](docs/screenshots/analytics.png) |
+| ![The Tours resource table](docs/screenshots/resource-list.png) | ![Views, completion rate, per-step drop-off and missing targets](docs/screenshots/analytics.png) |
 
 ## Targeting: `->tourTarget()` is the recommended approach
 
@@ -135,7 +139,7 @@ Anything else can be targeted with a raw CSS selector (`target_type = css`), and
 
 ### 1. From the panel (TourResource)
 
-Enable `->resource()` and you get an **Onboarding tours** resource: name, key, mode, route pattern (with your panel's routes as suggestions), version, publish toggle, start/end window, audience (roles, permissions), sort, active flag, and a **Steps** relation manager with drag-and-drop ordering, target type/target, rich-text body and placement.
+Enable `->resource()` and you get a **Tours** resource: name, key, mode, route pattern (with your panel's routes as suggestions), version, publish toggle, start/end window, audience (roles, permissions), sort, active flag, and a **Steps** relation manager with drag-and-drop ordering, target type/target, rich-text body and placement.
 
 Table actions:
 
@@ -354,7 +358,7 @@ See [CHANGELOG.md](CHANGELOG.md). Migrations are published, so run `php artisan 
 
 ```bash
 composer test          # Pest
-composer analyse       # PHPStan (level 5)
+composer analyse       # PHPStan (level 10)
 composer format        # Pint
 composer refactor      # Rector (composer refactor:check for a dry run)
 npm run build          # rebuild resources/dist (committed; consumers do not need npm)

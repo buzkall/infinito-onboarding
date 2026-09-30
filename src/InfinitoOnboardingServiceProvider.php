@@ -117,13 +117,7 @@ class InfinitoOnboardingServiceProvider extends PackageServiceProvider
     public static function migrationNames(): array
     {
         return [
-            'create_onboarding_tours_table',
-            'create_onboarding_tour_steps_table',
-            'create_onboarding_tour_completions_table',
-            'create_onboarding_tour_events_table',
-            'add_translations_to_onboarding_tables',
-            'add_meta_to_onboarding_tour_completions_table',
-            'add_user_index_to_onboarding_tour_events_table',
+            'create_onboarding_tables',
         ];
     }
 }

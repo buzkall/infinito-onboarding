@@ -42,8 +42,9 @@ class TourAnalytics
         $counts = $events()
             ->selectRaw('event, count(*) as aggregate')
             ->groupBy('event')
+            ->toBase()
             ->pluck('aggregate', 'event')
-            ->map(fn ($count): int => (int) $count);
+            ->map(fn (mixed $count): int => Cast::int($count) ?? 0);
 
         $views = $counts[TourEventType::View->value] ?? 0;
         $uniqueViewers = (int) $events()->ofType(TourEventType::View)->distinct('user_id')->count('user_id');
@@ -55,8 +56,9 @@ class TourAnalytics
             ->whereNotNull('step_id')
             ->selectRaw('step_id, count(*) as aggregate')
             ->groupBy('step_id')
+            ->toBase()
             ->pluck('aggregate', 'step_id')
-            ->map(fn ($count): int => (int) $count);
+            ->map(fn (mixed $count): int => Cast::int($count) ?? 0);
 
         $steps = $tour->steps->map(fn (TourStep $step): array => [
             'id' => $step->id,
@@ -74,23 +76,23 @@ class TourAnalytics
 
         // Aggregated in the database: these events are reported by browsers
         // and can be numerous, so they are never loaded into memory.
-        $missingQuery = $events()->ofType(TourEventType::TargetMissing);
-        $grammar = $missingQuery->getQuery()->getGrammar();
+        $missingQuery = $events()->ofType(TourEventType::TargetMissing)->toBase();
+        $grammar = $missingQuery->getGrammar();
 
         $missing = $missingQuery
             ->select('meta->selector as selector')
-            ->selectRaw('max(' . $grammar->wrap('meta->step_title') . ') as step_title')
+            // Only hard-coded columns are wrapped, so the raw expressions are safe.
+            ->selectRaw('max(' . $grammar->wrap('meta->step_title') . ') as step_title') // @phpstan-ignore argument.type
             ->selectRaw('count(*) as aggregate')
-            ->selectRaw('max(' . $grammar->wrap('created_at') . ') as last_seen_at')
+            ->selectRaw('max(' . $grammar->wrap('created_at') . ') as last_seen_at') // @phpstan-ignore argument.type
             ->groupBy('meta->selector')
             ->orderByDesc('aggregate')
-            ->toBase()
             ->get()
             ->map(fn (object $row): array => [
-                'selector' => (string) ($row->selector ?? '?'),
-                'step_title' => $row->step_title !== null ? (string) $row->step_title : null,
-                'count' => (int) $row->aggregate,
-                'last_seen_at' => $row->last_seen_at !== null ? Date::parse($row->last_seen_at)->toDateTimeString() : null,
+                'selector' => Cast::string($row->selector ?? null) ?? '?',
+                'step_title' => Cast::string($row->step_title ?? null),
+                'count' => Cast::int($row->aggregate ?? null) ?? 0,
+                'last_seen_at' => ($lastSeenAt = Cast::string($row->last_seen_at ?? null)) !== null ? Date::parse($lastSeenAt)->toDateTimeString() : null,
             ])
             ->values()
             ->all();
@@ -112,8 +114,8 @@ class TourAnalytics
      */
     public function prune(?int $days = null): int
     {
-        $days ??= (int) config('infinito-onboarding.analytics.prune_after_days', 90);
+        $days ??= config()->integer('infinito-onboarding.analytics.prune_after_days', 90);
 
-        return TourEvent::query()->where('created_at', '<', now()->subDays($days))->delete();
+        return TourEvent::query()->where('created_at', '<', now()->subDays($days))->toBase()->delete();
     }
 }

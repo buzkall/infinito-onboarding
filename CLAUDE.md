@@ -82,10 +82,20 @@ A selector that matches more than one element is always red.
 
 ## Quality gates
 
-- Every PR keeps **Pest green** (`vendor/bin/pest`), **Pint clean** (`vendor/bin/pint --test`) and **Rector clean** (`vendor/bin/rector process --dry-run`; configured in `rector.php` for PHP 8.3 with the dead code, code quality, type declaration and early return sets plus Laravel code quality and collection sets — run Pint after applying). PHPStan runs at level 5 (`vendor/bin/phpstan analyse`).
+- Every PR keeps **Pest green** (`vendor/bin/pest`), **Pint clean** (`vendor/bin/pint --test`) and **Rector clean** (`vendor/bin/rector process --dry-run`; configured in `rector.php` for PHP 8.3 with the dead code, code quality, type declaration and early return sets plus Laravel code quality and collection sets — run Pint after applying). PHPStan runs at level 10 (`vendor/bin/phpstan analyse`); narrow `mixed` config, JSON and form values with `Support\Cast` instead of bare `(string)` / `(int)` casts.
 - Tests use Orchestra Testbench with an in-memory SQLite database and a real Filament panel registered in `tests/TestCase.php`.
 - No feature lands without tests for its behaviour. Resolver branches, in particular, need a failing-if-removed test each.
 - Commit messages follow Conventional Commits (`feat:`, `fix:`, `chore:`, `docs:`, `test:`).
+
+## Writing code for PHPStan level 10
+
+`phpstan.neon` runs Larastan at level 10 over `src`, `config` and `database`. Write code that passes it on the first run, not code that gets fixed afterwards:
+
+- Every array parameter, property and return type gets a PHPDoc type (`list<string>`, `array<string, int>`, `array{int, int}`, `list<PhpToken>`), and so do closures stored or returned (`Closure(string): bool`). Closures get typed parameters and return types.
+- Values that arrive as `mixed` (config, JSON columns, request and form state, `DB` query rows, `file_get_contents()`, `glob()`) are narrowed before use: `config()->string()` / `->integer()` / `->array()`, `Support\Cast`, `is_string()` / `is_array()` guards, `?: []` on functions returning `false`. No bare `(string)` / `(int)` casts on `mixed`.
+- Use `?->` and `?? null` for array offsets that may be missing and values that may be null.
+- Never add `@phpstan-ignore` comments, baseline entries or inline `@var` overrides, and never widen a type to make an error go away. Fix the type instead.
+- Run `vendor/bin/phpstan analyse` before finishing any PHP change, alongside Pest, Pint and Rector.
 
 ## Query flags
 

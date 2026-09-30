@@ -67,7 +67,7 @@ class Tour extends Model
 
     public function getTable(): string
     {
-        return config('infinito-onboarding.table_names.tours', 'onboarding_tours');
+        return config()->string('infinito-onboarding.table_names.tours', 'onboarding_tours');
     }
 
     /**
@@ -116,13 +116,19 @@ class Tour extends Model
     |--------------------------------------------------------------------------
     */
 
-    /** @param  Builder<Tour>  $query */
+    /**
+     * @param  Builder<Tour>  $query
+     * @return Builder<Tour>
+     */
     protected function scopeActive(Builder $query): Builder
     {
         return $query->where('is_active', true);
     }
 
-    /** @param  Builder<Tour>  $query */
+    /**
+     * @param  Builder<Tour>  $query
+     * @return Builder<Tour>
+     */
     protected function scopePublished(Builder $query, ?Carbon $now = null): Builder
     {
         return $query
@@ -130,7 +136,10 @@ class Tour extends Model
             ->where('published_at', '<=', $now ?? now());
     }
 
-    /** @param  Builder<Tour>  $query */
+    /**
+     * @param  Builder<Tour>  $query
+     * @return Builder<Tour>
+     */
     protected function scopeWithinWindow(Builder $query, ?Carbon $now = null): Builder
     {
         $now ??= now();
@@ -147,6 +156,7 @@ class Tour extends Model
      * candidates; the definitive check happens through matchesRoute().
      *
      * @param  Builder<Tour>  $query
+     * @return Builder<Tour>
      */
     protected function scopeForRoute(Builder $query, string $route): Builder
     {
@@ -165,7 +175,10 @@ class Tour extends Model
         });
     }
 
-    /** @param  Builder<Tour>  $query */
+    /**
+     * @param  Builder<Tour>  $query
+     * @return Builder<Tour>
+     */
     protected function scopeForTenant(Builder $query, ?string $tenantId): Builder
     {
         return $query->where(function (Builder $query) use ($tenantId): void {
@@ -182,19 +195,26 @@ class Tour extends Model
      * tours, so one tenant can never edit what another tenant's users see.
      *
      * @param  Builder<Tour>  $query
+     * @return Builder<Tour>
      */
     protected function scopeManageableIn(Builder $query, ?string $tenantId): Builder
     {
         return $query->when(filled($tenantId), fn (Builder $query) => $query->where('tenant_id', $tenantId));
     }
 
-    /** @param  Builder<Tour>  $query */
+    /**
+     * @param  Builder<Tour>  $query
+     * @return Builder<Tour>
+     */
     protected function scopeOrdered(Builder $query): Builder
     {
         return $query->orderBy('sort')->orderBy('id');
     }
 
-    /** @param  Builder<Tour>  $query */
+    /**
+     * @param  Builder<Tour>  $query
+     * @return Builder<Tour>
+     */
     protected function scopeMode(Builder $query, TourMode $mode): Builder
     {
         return $query->where('mode', $mode);
@@ -246,7 +266,7 @@ class Tour extends Model
      */
     public function getPreviewUrl(): string
     {
-        $parameter = (string) config('infinito-onboarding.query_parameters.preview', 'onboarding-preview');
+        $parameter = config()->string('infinito-onboarding.query_parameters.preview', 'onboarding-preview');
 
         return static::pageUrlWith($this->getPagePath(), $parameter, $this->key);
     }
@@ -257,7 +277,7 @@ class Tour extends Model
      */
     public function getRecordUrl(?string $path = null): string
     {
-        $parameter = (string) config('infinito-onboarding.query_parameters.record', 'onboarding-record');
+        $parameter = config()->string('infinito-onboarding.query_parameters.record', 'onboarding-record');
 
         return static::pageUrlWith($path ?? $this->getPagePath(), $parameter, $this->key);
     }

@@ -73,17 +73,6 @@ class TestCase extends Orchestra
     {
         $this->loadMigrationsFrom(__DIR__ . '/Fixtures/migrations');
 
-        foreach ([
-            'create_onboarding_tours_table',
-            'create_onboarding_tour_steps_table',
-            'create_onboarding_tour_completions_table',
-            'create_onboarding_tour_events_table',
-            'add_translations_to_onboarding_tables',
-            'add_meta_to_onboarding_tour_completions_table',
-            'add_user_index_to_onboarding_tour_events_table',
-        ] as $migration) {
-            $migration = include __DIR__ . "/../database/migrations/{$migration}.php.stub";
-            $migration->up();
-        }
+        (include __DIR__ . '/../database/migrations/create_onboarding_tables.php.stub')->up();
     }
 }

@@ -11,6 +11,7 @@ use Arzcode\InfinitoOnboarding\Filament\Support\TranslationTabs;
 use Arzcode\InfinitoOnboarding\InfinitoOnboardingPlugin;
 use Arzcode\InfinitoOnboarding\Livewire\TourOverlay;
 use Arzcode\InfinitoOnboarding\Models\Tour;
+use Arzcode\InfinitoOnboarding\Support\Cast;
 use Arzcode\InfinitoOnboarding\Support\PanelRoutes;
 use Arzcode\InfinitoOnboarding\Support\Segments;
 use BackedEnum;
@@ -42,6 +43,7 @@ use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Filters\TernaryFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str;
 use Livewire\Component;
 use UnitEnum;
@@ -310,7 +312,7 @@ class TourResource extends Resource
                 static::pagePathInput(),
             ])
             ->action(function (array $data, ?Tour $record, Component $livewire, Action $action): void {
-                $action->redirect(static::actionTour($record, $livewire)->getRecordUrl(Tour::normalisePagePath($data['path'])));
+                $action->redirect(static::actionTour($record, $livewire)->getRecordUrl(Tour::normalisePagePath(Cast::string($data['path'] ?? null) ?? '')));
             });
     }
 
@@ -347,7 +349,7 @@ class TourResource extends Resource
                 static::pagePathInput(),
             ])
             ->action(function (array $data, Action $action): void {
-                $path = (string) Tour::normalisePagePath($data['path']);
+                $path = (string) Tour::normalisePagePath(Cast::string($data['path'] ?? null) ?? '');
 
                 $tour = Tour::query()->create(static::mutateFormData([
                     'name' => $data['name'],
@@ -402,7 +404,7 @@ class TourResource extends Resource
             ->requiresConfirmation()
             ->modalDescription(__('infinito-onboarding::onboarding.resource.actions.reset_seen_state_confirm'))
             ->action(function (Tour $record): void {
-                $deleted = $record->completions()->delete();
+                $deleted = $record->completions()->toBase()->delete();
 
                 Notification::make()
                     ->title(__('infinito-onboarding::onboarding.resource.actions.reset_seen_state_done', ['count' => $deleted]))
@@ -459,7 +461,7 @@ class TourResource extends Resource
             $data['published_at'] = now();
         }
 
-        $audience = collect($data['audience'] ?? [])
+        $audience = collect((array) ($data['audience'] ?? []))
             ->map(fn (mixed $value): mixed => is_array($value) ? array_values(array_filter($value, filled(...))) : $value)
             ->filter(fn (mixed $value): bool => filled($value))
             ->all();
@@ -484,12 +486,12 @@ class TourResource extends Resource
     {
         $roleModel = config('permission.models.role');
 
-        if (! is_string($roleModel) || ! class_exists($roleModel)) {
+        if (! is_string($roleModel) || ! is_a($roleModel, Model::class, true)) {
             return [];
         }
 
         try {
-            return $roleModel::query()->pluck('name')->map(fn ($name): string => (string) $name)->unique()->values()->all();
+            return $roleModel::query()->toBase()->pluck('name')->map(fn (mixed $name): string => Cast::string($name) ?? '')->filter()->unique()->values()->all();
         } catch (\Throwable) {
             return [];
         }

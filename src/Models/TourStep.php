@@ -6,6 +6,7 @@ use Arzcode\InfinitoOnboarding\Concerns\HasTranslatedContent;
 use Arzcode\InfinitoOnboarding\Database\Factories\TourStepFactory;
 use Arzcode\InfinitoOnboarding\Enums\Placement;
 use Arzcode\InfinitoOnboarding\Enums\TargetType;
+use Arzcode\InfinitoOnboarding\Support\Cast;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -52,7 +53,7 @@ class TourStep extends Model
 
     public function getTable(): string
     {
-        return config('infinito-onboarding.table_names.tour_steps', 'onboarding_tour_steps');
+        return config()->string('infinito-onboarding.table_names.tour_steps', 'onboarding_tour_steps');
     }
 
     /**
@@ -101,12 +102,12 @@ class TourStep extends Model
         return collect($actions)
             ->filter(fn (mixed $action): bool => is_array($action))
             ->map(fn (array $action): array => [
-                'type' => (string) ($action['type'] ?? 'click'),
-                'target_type' => isset($action['target_type']) ? (string) $action['target_type'] : null,
-                'target' => isset($action['target']) ? (string) $action['target'] : null,
-                'selector' => isset($action['selector']) ? (string) $action['selector'] : null,
-                'timeout' => isset($action['timeout']) ? (int) $action['timeout'] : null,
-                'event' => isset($action['event']) ? (string) $action['event'] : null,
+                'type' => Cast::string($action['type'] ?? null) ?? 'click',
+                'target_type' => Cast::string($action['target_type'] ?? null),
+                'target' => Cast::string($action['target'] ?? null),
+                'selector' => Cast::string($action['selector'] ?? null),
+                'timeout' => Cast::int($action['timeout'] ?? null),
+                'event' => Cast::string($action['event'] ?? null),
             ])
             ->filter(fn (array $action): bool => filled($action['target']) || filled($action['selector']) || filled($action['event']) || $action['type'] === 'wait')
             ->values()

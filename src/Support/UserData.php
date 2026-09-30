@@ -21,8 +21,8 @@ class UserData
     public function forget(string|int $userId): array
     {
         return DB::transaction(fn (): array => [
-            'completions' => TourCompletion::query()->where('user_id', (string) $userId)->delete(),
-            'events' => TourEvent::query()->where('user_id', (string) $userId)->delete(),
+            'completions' => TourCompletion::query()->where('user_id', (string) $userId)->toBase()->delete(),
+            'events' => TourEvent::query()->where('user_id', (string) $userId)->toBase()->delete(),
         ]);
     }
 }

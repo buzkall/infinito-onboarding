@@ -83,8 +83,8 @@ class Installer
         $pending = [];
 
         foreach ($files as $file) {
-            if (PanelProviderPatcher::contains((string) file_get_contents($file))) {
-                note(sprintf('InfinitoOnboardingPlugin is already registered in %s.', $this->relativePath($file)));
+            if (PanelProviderPatcher::mentions((string) file_get_contents($file))) {
+                note(sprintf('InfinitoOnboardingPlugin is already present in %s. Leaving it as-is.', $this->relativePath($file)));
 
                 continue;
             }
@@ -99,7 +99,7 @@ class Installer
         }
 
         $chain = array_values(array_filter([
-            confirm(label: 'Add the Onboarding tours resource to the panel?', default: true) ? '->resource()' : null,
+            confirm(label: 'Add the Tours resource to the panel?', default: true) ? '->resource()' : null,
             confirm(label: 'Add the "What\'s new" button to the topbar?', default: false) ? '->topbarTrigger()' : null,
             self::AUTHORIZE_PLACEHOLDER,
         ]));
@@ -107,7 +107,7 @@ class Installer
         foreach ($pending as $file) {
             $patched = PanelProviderPatcher::add((string) file_get_contents($file), $chain);
 
-            if ($patched === null) {
+            if ($patched === null || ! PanelProviderPatcher::parses($patched)) {
                 warning(sprintf('Could not patch %s. Add ->plugin(InfinitoOnboardingPlugin::make()) by hand.', $this->relativePath($file)));
 
                 continue;

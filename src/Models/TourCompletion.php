@@ -4,10 +4,12 @@ namespace Arzcode\InfinitoOnboarding\Models;
 
 use Arzcode\InfinitoOnboarding\Database\Factories\TourCompletionFactory;
 use Carbon\CarbonImmutable;
+use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use UnexpectedValueException;
 
 /**
  * @property int $id
@@ -48,12 +50,26 @@ class TourCompletion extends Model
 
     public function getTable(): string
     {
-        return config('infinito-onboarding.table_names.tour_completions', 'onboarding_tour_completions');
+        return config()->string('infinito-onboarding.table_names.tour_completions', 'onboarding_tour_completions');
     }
 
     protected static function newFactory(): TourCompletionFactory
     {
         return TourCompletionFactory::new();
+    }
+
+    /**
+     * The value stored in `user_id` for the given user.
+     */
+    public static function userIdOf(Authenticatable $user): string
+    {
+        $id = $user->getAuthIdentifier();
+
+        if (! is_int($id) && ! is_string($id)) {
+            throw new UnexpectedValueException('Onboarding needs users with a string or integer identifier.');
+        }
+
+        return (string) $id;
     }
 
     public static function normalizeTenantId(?string $tenantId): string
@@ -77,7 +93,10 @@ class TourCompletion extends Model
         return $this->belongsTo(Tour::class);
     }
 
-    /** @param  Builder<TourCompletion>  $query */
+    /**
+     * @param  Builder<TourCompletion>  $query
+     * @return Builder<TourCompletion>
+     */
     protected function scopeForUser(Builder $query, string|int $userId, ?string $tenantId = null): Builder
     {
         return $query

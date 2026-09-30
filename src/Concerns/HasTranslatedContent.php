@@ -37,9 +37,7 @@ trait HasTranslatedContent
             }
         }
 
-        $base = $this->getAttribute($attribute);
-
-        return $base === null ? null : (string) $base;
+        return $this->baseContent($attribute);
     }
 
     /**
@@ -49,7 +47,7 @@ trait HasTranslatedContent
      */
     public function getTranslations(string $attribute): array
     {
-        $values = [Locales::default() => $this->getAttribute($attribute)];
+        $values = [Locales::default() => $this->baseContent($attribute)];
 
         foreach ($this->translations ?? [] as $locale => $attributes) {
             if (array_key_exists($attribute, $attributes)) {
@@ -58,6 +56,13 @@ trait HasTranslatedContent
         }
 
         return $values;
+    }
+
+    protected function baseContent(string $attribute): ?string
+    {
+        $value = $this->getAttribute($attribute);
+
+        return is_scalar($value) ? (string) $value : null;
     }
 
     public function setTranslation(string $locale, string $attribute, ?string $value): static
@@ -90,7 +95,7 @@ trait HasTranslatedContent
     /**
      * Drop empty strings, unknown attributes and empty locales.
      *
-     * @param  array<string, mixed>|null  $translations
+     * @param  array<mixed>|null  $translations
      * @return array<string, array<string, string>>|null
      */
     public static function cleanTranslations(?array $translations): ?array
@@ -101,7 +106,7 @@ trait HasTranslatedContent
         $clean = [];
 
         foreach ($translations ?? [] as $locale => $attributes) {
-            if (! is_array($attributes) || $locale === Locales::default()) {
+            if (! is_string($locale) || ! is_array($attributes) || $locale === Locales::default()) {
                 continue;
             }
 
